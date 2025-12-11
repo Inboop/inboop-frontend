@@ -41,8 +41,8 @@ export function OrdersTable({ orders, selectedId, onSelect }: OrdersTableProps) 
             key={order.id}
             onClick={() => onSelect(order.id)}
             className={cn(
-              'cursor-pointer',
-              selectedId === order.id && 'bg-muted'
+              'cursor-pointer transition-all duration-200 hover:bg-purple-50 hover:shadow-sm',
+              selectedId === order.id && 'bg-purple-100'
             )}
           >
             <TableCell className="font-mono text-sm">#{order.id}</TableCell>

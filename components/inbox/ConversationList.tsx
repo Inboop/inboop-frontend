@@ -36,8 +36,8 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
             key={conversation.id}
             onClick={() => onSelect(conversation.id)}
             className={cn(
-              'flex w-full items-start gap-3 border-b p-4 text-left transition-colors hover:bg-accent',
-              selectedId === conversation.id && 'bg-accent'
+              'flex w-full items-start gap-3 border-b p-4 text-left transition-all duration-200 hover:bg-purple-50 hover:shadow-sm',
+              selectedId === conversation.id && 'bg-purple-100 border-l-4 border-l-purple-600'
             )}
           >
             <Avatar className="h-12 w-12">

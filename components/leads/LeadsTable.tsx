@@ -42,8 +42,8 @@ export function LeadsTable({ leads, selectedId, onSelect }: LeadsTableProps) {
             key={lead.id}
             onClick={() => onSelect(lead.id)}
             className={cn(
-              'cursor-pointer',
-              selectedId === lead.id && 'bg-muted'
+              'cursor-pointer transition-all duration-200 hover:bg-purple-50 hover:shadow-sm',
+              selectedId === lead.id && 'bg-purple-100'
             )}
           >
             <TableCell>

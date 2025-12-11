@@ -17,32 +17,32 @@ export function formatMessageTime(date: Date): string {
 
 export function getIntentColor(intent: IntentType): string {
   const colors: Record<IntentType, string> = {
-    Inquiry: 'bg-blue-100 text-blue-700 border-blue-200',
-    Order: 'bg-green-100 text-green-700 border-green-200',
-    Payment: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    Delivery: 'bg-purple-100 text-purple-700 border-purple-200',
-    Issue: 'bg-red-100 text-red-700 border-red-200',
-    Other: 'bg-gray-100 text-gray-700 border-gray-200',
+    Inquiry: 'bg-blue-500 text-white border-blue-600',
+    Order: 'bg-emerald-500 text-white border-emerald-600',
+    Payment: 'bg-amber-500 text-white border-amber-600',
+    Delivery: 'bg-purple-500 text-white border-purple-600',
+    Issue: 'bg-rose-500 text-white border-rose-600',
+    Other: 'bg-slate-500 text-white border-slate-600',
   };
   return colors[intent];
 }
 
 export function getLeadStatusColor(status: LeadStatus): string {
   const colors: Record<LeadStatus, string> = {
-    'New': 'bg-blue-100 text-blue-700',
-    'In Progress': 'bg-yellow-100 text-yellow-700',
-    'Converted': 'bg-green-100 text-green-700',
-    'Closed': 'bg-gray-100 text-gray-700',
+    'New': 'bg-blue-500 text-white',
+    'In Progress': 'bg-amber-500 text-white',
+    'Converted': 'bg-emerald-500 text-white',
+    'Closed': 'bg-slate-500 text-white',
   };
   return colors[status];
 }
 
 export function getOrderStatusColor(status: OrderStatus): string {
   const colors: Record<OrderStatus, string> = {
-    'Pending': 'bg-yellow-100 text-yellow-700',
-    'Paid': 'bg-blue-100 text-blue-700',
-    'Shipped': 'bg-green-100 text-green-700',
-    'Cancelled': 'bg-red-100 text-red-700',
+    'Pending': 'bg-amber-500 text-white',
+    'Paid': 'bg-blue-500 text-white',
+    'Shipped': 'bg-emerald-500 text-white',
+    'Cancelled': 'bg-rose-500 text-white',
   };
   return colors[status];
 }

@@ -13,8 +13,8 @@ export function TopBar({ title }: TopBarProps) {
   const { user } = useAuthStore();
 
   return (
-    <div className="flex h-16 items-center justify-between border-b bg-card px-6">
-      <h2 className="text-2xl font-semibold">{title}</h2>
+    <div className="flex h-16 items-center justify-between border-b bg-card px-6 shadow-sm">
+      <h2 className="text-2xl font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{title}</h2>
 
       <div className="flex items-center gap-4">
         <div className="relative w-80">
