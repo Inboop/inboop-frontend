@@ -6,6 +6,16 @@ export default {
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./lib/**/*.{js,ts,jsx,tsx}",
+  ],
+  safelist: [
+    // Intent colors
+    'bg-blue-500', 'text-white', 'border-blue-600',
+    'bg-emerald-500', 'border-emerald-600',
+    'bg-amber-500', 'border-amber-600',
+    'bg-purple-500', 'border-purple-600',
+    'bg-rose-500', 'border-rose-600',
+    'bg-slate-500', 'border-slate-600',
   ],
   theme: {
     container: {
