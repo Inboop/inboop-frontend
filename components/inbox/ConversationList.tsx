@@ -55,7 +55,7 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                 {conversation.lastMessage}
               </p>
               <div className="mt-2 flex items-center gap-2">
-                <Badge variant="outline" className={cn('text-xs', getIntentColor(conversation.intent))}>
+                <Badge className={cn('text-xs', getIntentColor(conversation.intent))}>
                   {conversation.intent}
                 </Badge>
                 {conversation.unreadCount && conversation.unreadCount > 0 && (

@@ -49,7 +49,7 @@ export function OrdersTable({ orders, selectedId, onSelect }: OrdersTableProps) 
             <TableCell className="font-medium">{order.customerHandle}</TableCell>
             <TableCell className="font-semibold">{formatCurrency(order.amount)}</TableCell>
             <TableCell>
-              <Badge variant="secondary" className={getOrderStatusColor(order.status)}>
+              <Badge className={getOrderStatusColor(order.status)}>
                 {order.status}
               </Badge>
             </TableCell>

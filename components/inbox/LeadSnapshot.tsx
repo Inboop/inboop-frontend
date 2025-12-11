@@ -62,7 +62,7 @@ export function LeadSnapshot({ conversation }: LeadSnapshotProps) {
             <div>
               <Label className="text-xs text-muted-foreground">Primary Intent</Label>
               <div className="mt-1">
-                <Badge variant="outline" className={getIntentColor(conversation.intent)}>
+                <Badge className={getIntentColor(conversation.intent)}>
                   {conversation.intent}
                 </Badge>
               </div>

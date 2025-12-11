@@ -59,7 +59,7 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
               <div>
                 <Label className="text-xs text-muted-foreground">Primary Intent</Label>
                 <div className="mt-1">
-                  <Badge variant="outline" className={getIntentColor(lead.intent)}>
+                  <Badge className={getIntentColor(lead.intent)}>
                     {lead.intent}
                   </Badge>
                 </div>

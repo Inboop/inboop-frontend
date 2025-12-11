@@ -56,12 +56,12 @@ export function LeadsTable({ leads, selectedId, onSelect }: LeadsTableProps) {
               </div>
             </TableCell>
             <TableCell>
-              <Badge variant="outline" className={getIntentColor(lead.intent)}>
+              <Badge className={getIntentColor(lead.intent)}>
                 {lead.intent}
               </Badge>
             </TableCell>
             <TableCell>
-              <Badge variant="secondary" className={getLeadStatusColor(lead.status)}>
+              <Badge className={getLeadStatusColor(lead.status)}>
                 {lead.status}
               </Badge>
             </TableCell>
