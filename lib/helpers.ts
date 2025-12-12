@@ -7,10 +7,13 @@ export function formatMessageTime(date: Date): string {
   const daysDiff = diff / (1000 * 60 * 60 * 24);
 
   if (daysDiff < 1) {
-    return formatDistanceToNow(date, { addSuffix: true });
+    // Today - show time like "10:30 AM"
+    return format(date, 'h:mm a');
   } else if (daysDiff < 7) {
+    // This week - show day and time like "Mon 10:30 AM"
     return format(date, 'EEE h:mm a');
   } else {
+    // Older - show date like "Dec 12, 2024"
     return format(date, 'MMM d, yyyy');
   }
 }
@@ -58,4 +61,8 @@ export function getInitials(name: string): string {
 
 export function formatCurrency(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
+}
+
+export function formatRelativeTime(date: Date): string {
+  return formatDistanceToNow(date, { addSuffix: true });
 }

@@ -50,9 +50,9 @@ export function LeadsTable({ leads, selectedId, onSelect }: LeadsTableProps) {
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={lead.profilePicture} />
-                  <AvatarFallback>{getInitials(lead.instagramHandle)}</AvatarFallback>
+                  <AvatarFallback>{getInitials(lead.customerHandle)}</AvatarFallback>
                 </Avatar>
-                <span className="font-medium">{lead.instagramHandle}</span>
+                <span className="font-medium">{lead.customerName || lead.customerHandle}</span>
               </div>
             </TableCell>
             <TableCell>
