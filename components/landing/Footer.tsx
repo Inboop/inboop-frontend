@@ -1,4 +1,4 @@
-import { InboopLogo } from '../InboopLogo';
+import Image from 'next/image';
 import { Twitter, Linkedin, Instagram as InstagramIcon, Facebook as FacebookIcon } from 'lucide-react';
 
 export function Footer() {
@@ -14,7 +14,13 @@ export function Footer() {
         <div className="grid md:grid-cols-5 gap-12 mb-12">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2 mb-4">
-              <InboopLogo />
+              <Image
+                src="/images/SolidLogo.png"
+                alt="Inboop"
+                width={32}
+                height={32}
+                className="rounded-lg"
+              />
               <span className="text-xl text-gray-900">Inboop</span>
             </div>
             <p className="text-gray-600 mb-6 leading-relaxed">

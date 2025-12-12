@@ -29,11 +29,11 @@ export function Testimonials() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   return (
-    <section className="py-20 px-6 bg-gradient-to-br from-gray-50 to-white">
+    <section className="py-20 px-6" style={{ backgroundColor: '#2F5D3E' }}>
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-4xl text-gray-900 mb-4">Loved by sellers worldwide</h2>
-          <p className="text-xl text-gray-600">See what our customers have to say</p>
+          <h2 className="text-4xl text-white mb-4">Loved by sellers worldwide</h2>
+          <p className="text-xl text-white/80">See what our customers have to say</p>
         </div>
 
         <div className="max-w-4xl mx-auto">
