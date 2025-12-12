@@ -270,9 +270,17 @@ export default function ConversationList({
             <div className="flex items-start gap-2.5">
               {/* Avatar */}
               <div className="relative flex-shrink-0">
-                <div className="w-10 h-10 bg-[#1a1f2e] rounded-full flex items-center justify-center text-white text-sm font-medium">
-                  {getInitials(conversation.customerName)}
-                </div>
+                {conversation.profilePicture ? (
+                  <img
+                    src={conversation.profilePicture}
+                    alt={conversation.customerName || conversation.customerHandle}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-[#1a1f2e] rounded-full flex items-center justify-center text-white text-sm font-medium">
+                    {getInitials(conversation.customerName)}
+                  </div>
+                )}
                 <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-sm">
                   {getChannelIcon(conversation.channel, 10)}
                 </div>

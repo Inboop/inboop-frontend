@@ -86,11 +86,19 @@ export function LeadSnapshot({
         </h2>
 
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-11 h-11 rounded-full bg-gray-900 flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-sm">
-              {getInitials(conversation.customerName)}
-            </span>
-          </div>
+          {conversation.profilePicture ? (
+            <img
+              src={conversation.profilePicture}
+              alt={conversation.customerName || conversation.customerHandle}
+              className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+            />
+          ) : (
+            <div className="w-11 h-11 rounded-full bg-gray-900 flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-sm">
+                {getInitials(conversation.customerName)}
+              </span>
+            </div>
+          )}
           <div className="min-w-0">
             <h3 className="text-sm font-medium text-gray-900 truncate">
               {conversation.customerName || conversation.customerHandle}

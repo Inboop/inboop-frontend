@@ -1,4 +1,76 @@
-import { Check, MessageSquare, Users, Zap } from 'lucide-react';
+import { Check, MessageSquare, Users, Zap, Instagram, Facebook, ArrowRight, MessageCircle } from 'lucide-react';
+
+function UnifiedInboxIllustration() {
+  return (
+    <div className="relative w-full flex items-center justify-center py-16">
+      <div className="flex items-center gap-12">
+        {/* Left side - Social platform icons */}
+        <div className="flex flex-col gap-6">
+          <div className="w-14 h-14 rounded-2xl bg-white shadow-md flex items-center justify-center border border-gray-200">
+            <Instagram className="w-6 h-6 text-gray-700" strokeWidth={2} />
+          </div>
+          <div className="w-14 h-14 rounded-2xl bg-white shadow-md flex items-center justify-center border border-gray-200">
+            <MessageCircle className="w-6 h-6 text-gray-700" strokeWidth={2} />
+          </div>
+          <div className="w-14 h-14 rounded-2xl bg-white shadow-md flex items-center justify-center border border-gray-200">
+            <Facebook className="w-6 h-6 text-gray-700" strokeWidth={2} />
+          </div>
+        </div>
+
+        {/* Arrow */}
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+          <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+          <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+          <ArrowRight className="w-6 h-6 text-gray-400 ml-1" strokeWidth={2} />
+        </div>
+
+        {/* Right side - Unified inbox card */}
+        <div className="w-72 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+          {/* Header */}
+          <div className="px-5 py-4 border-b border-gray-200 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#2F5D3E' }}>
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+            </div>
+            <div className="h-2 bg-gray-200 rounded-full w-20"></div>
+          </div>
+
+          {/* Message rows - conversation style */}
+          <div className="p-5 space-y-3">
+            {/* Message 1 */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gray-200 flex-shrink-0"></div>
+              <div className="flex-1 space-y-1">
+                <div className="h-2 bg-gray-300 rounded-full w-3/4"></div>
+                <div className="h-2 bg-gray-200 rounded-full w-1/2"></div>
+              </div>
+            </div>
+
+            {/* Message 2 */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gray-200 flex-shrink-0"></div>
+              <div className="flex-1 space-y-1">
+                <div className="h-2 bg-gray-300 rounded-full w-2/3"></div>
+                <div className="h-2 bg-gray-200 rounded-full w-2/5"></div>
+              </div>
+            </div>
+
+            {/* Message 3 */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gray-200 flex-shrink-0"></div>
+              <div className="flex-1 space-y-1">
+                <div className="h-2 bg-gray-300 rounded-full w-4/5"></div>
+                <div className="h-2 bg-gray-200 rounded-full w-3/5"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function SecondaryFeature() {
   const benefits = [
@@ -13,23 +85,7 @@ export function SecondaryFeature() {
       <div className="max-w-7xl mx-auto">
         <div className="grid md:grid-cols-2 gap-16 items-center">
           <div className="order-2 md:order-1">
-            <div className="rounded-3xl bg-white p-8 shadow-2xl border border-gray-100">
-              <div className="space-y-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-3 p-4 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0"></div>
-                    <div className="flex-1">
-                      <div className="h-3 bg-gray-300 rounded-full w-3/4 mb-2"></div>
-                      <div className="h-2 bg-gray-200 rounded-full w-full"></div>
-                    </div>
-                    <div className="text-xs text-gray-400">2m</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <UnifiedInboxIllustration />
           </div>
 
           <div className="order-1 md:order-2">
