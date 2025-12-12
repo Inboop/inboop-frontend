@@ -3,6 +3,9 @@ name: Build and Deploy to Hostinger VPS
 on:
   push:
     branches:
+      - '**'  # Trigger build on all branches
+  pull_request:
+    branches:
       - master
 
 jobs:
@@ -31,7 +34,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: success()
+    if: success() && github.ref == 'refs/heads/master'  # Only deploy on master
 
     steps:
       - name: Deploy to VPS via SSH
