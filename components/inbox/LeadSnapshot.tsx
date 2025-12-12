@@ -7,9 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ExternalLink, Eye, ShoppingCart } from 'lucide-react';
+import { ExternalLink, Eye, ShoppingCart, Save } from 'lucide-react';
 import { getIntentColor, getLeadStatusColor } from '@/lib/helpers';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LeadStatus } from '@/types';
 
 interface LeadSnapshotProps {
@@ -18,7 +18,38 @@ interface LeadSnapshotProps {
 
 export function LeadSnapshot({ conversation }: LeadSnapshotProps) {
   const [leadStatus, setLeadStatus] = useState<LeadStatus>('New');
+  const [originalStatus, setOriginalStatus] = useState<LeadStatus>('New');
   const [notes, setNotes] = useState('');
+  const [originalNotes, setOriginalNotes] = useState('');
+
+  // Initialize state when conversation changes
+  useEffect(() => {
+    if (conversation) {
+      // TODO: Get actual status from conversation/lead data
+      const initialStatus: LeadStatus = 'New';
+      const initialNotes = '';
+
+      setLeadStatus(initialStatus);
+      setOriginalStatus(initialStatus);
+      setNotes(initialNotes);
+      setOriginalNotes(initialNotes);
+    }
+  }, [conversation?.id]);
+
+  const hasStatusChanged = leadStatus !== originalStatus;
+  const hasNotesChanged = notes !== originalNotes;
+
+  const handleSaveStatus = () => {
+    // TODO: Implement API call to save status
+    console.log('Saving status:', leadStatus);
+    setOriginalStatus(leadStatus);
+  };
+
+  const handleSaveNotes = () => {
+    // TODO: Implement API call to save notes
+    console.log('Saving notes:', notes);
+    setOriginalNotes(notes);
+  };
 
   if (!conversation) {
     return (
@@ -62,7 +93,7 @@ export function LeadSnapshot({ conversation }: LeadSnapshotProps) {
             <div>
               <Label className="text-xs text-muted-foreground">Primary Intent</Label>
               <div className="mt-1">
-                <Badge variant="outline" className={getIntentColor(conversation.intent)}>
+                <Badge className={getIntentColor(conversation.intent)}>
                   {conversation.intent}
                 </Badge>
               </div>
@@ -72,17 +103,29 @@ export function LeadSnapshot({ conversation }: LeadSnapshotProps) {
               <Label htmlFor="lead-status" className="text-xs text-muted-foreground">
                 Lead Status
               </Label>
-              <Select
-                id="lead-status"
-                value={leadStatus}
-                onChange={(e) => setLeadStatus(e.target.value as LeadStatus)}
-                className="mt-1"
-              >
-                <option value="New">New</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Converted">Converted</option>
-                <option value="Closed">Closed</option>
-              </Select>
+              <div className="space-y-2">
+                <Select
+                  id="lead-status"
+                  value={leadStatus}
+                  onChange={(e) => setLeadStatus(e.target.value as LeadStatus)}
+                  className="mt-1"
+                >
+                  <option value="New">New</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Converted">Converted</option>
+                  <option value="Closed">Closed</option>
+                </Select>
+                {hasStatusChanged && (
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={handleSaveStatus}
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Status
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -114,9 +157,12 @@ export function LeadSnapshot({ conversation }: LeadSnapshotProps) {
               onChange={(e) => setNotes(e.target.value)}
               rows={4}
             />
-            <Button size="sm" className="mt-2 w-full">
-              Save Notes
-            </Button>
+            {hasNotesChanged && (
+              <Button size="sm" className="mt-2 w-full" onClick={handleSaveNotes}>
+                <Save className="mr-2 h-4 w-4" />
+                Save Notes
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

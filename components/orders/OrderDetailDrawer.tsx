@@ -35,7 +35,7 @@ export function OrderDetailDrawer({ order, onClose }: OrderDetailDrawerProps) {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="font-mono text-base">Order #{order.id}</CardTitle>
-                <Badge variant="secondary" className={getOrderStatusColor(order.status)}>
+                <Badge className={getOrderStatusColor(order.status)}>
                   {order.status}
                 </Badge>
               </div>

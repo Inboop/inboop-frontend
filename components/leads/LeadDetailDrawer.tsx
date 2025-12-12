@@ -8,9 +8,9 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { X, MessageSquare, ShoppingCart, ExternalLink } from 'lucide-react';
+import { X, MessageSquare, ShoppingCart, ExternalLink, Save } from 'lucide-react';
 import { getIntentColor, getLeadStatusColor, getInitials, formatMessageTime } from '@/lib/helpers';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface LeadDetailDrawerProps {
   lead: Lead | null;
@@ -19,7 +19,30 @@ interface LeadDetailDrawerProps {
 
 export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
   const [status, setStatus] = useState<LeadStatus>(lead?.status || 'New');
+  const [originalStatus, setOriginalStatus] = useState<LeadStatus>(lead?.status || 'New');
   const [notes, setNotes] = useState(lead?.notes || '');
+  const [originalNotes, setOriginalNotes] = useState(lead?.notes || '');
+
+  // Update state when lead changes
+  useEffect(() => {
+    if (lead) {
+      setStatus(lead.status);
+      setOriginalStatus(lead.status);
+      setNotes(lead.notes || '');
+      setOriginalNotes(lead.notes || '');
+    }
+  }, [lead?.id]);
+
+  const hasStatusChanged = status !== originalStatus;
+  const hasNotesChanged = notes !== originalNotes;
+  const hasChanges = hasStatusChanged || hasNotesChanged;
+
+  const handleSave = () => {
+    // TODO: Implement API call to save changes
+    console.log('Saving changes:', { status, notes });
+    setOriginalStatus(status);
+    setOriginalNotes(notes);
+  };
 
   if (!lead) return null;
 
@@ -59,7 +82,7 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
               <div>
                 <Label className="text-xs text-muted-foreground">Primary Intent</Label>
                 <div className="mt-1">
-                  <Badge variant="outline" className={getIntentColor(lead.intent)}>
+                  <Badge className={getIntentColor(lead.intent)}>
                     {lead.intent}
                   </Badge>
                 </div>
@@ -149,9 +172,14 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
           </div>
         </div>
 
-        <div className="border-t p-4">
-          <Button className="w-full">Save Changes</Button>
-        </div>
+        {hasChanges && (
+          <div className="border-t p-4">
+            <Button className="w-full" onClick={handleSave}>
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

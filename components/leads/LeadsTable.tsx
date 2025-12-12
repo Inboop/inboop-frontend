@@ -42,8 +42,8 @@ export function LeadsTable({ leads, selectedId, onSelect }: LeadsTableProps) {
             key={lead.id}
             onClick={() => onSelect(lead.id)}
             className={cn(
-              'cursor-pointer',
-              selectedId === lead.id && 'bg-muted'
+              'cursor-pointer transition-all duration-200 hover:bg-purple-50 hover:shadow-sm',
+              selectedId === lead.id && 'bg-purple-100'
             )}
           >
             <TableCell>
@@ -56,12 +56,12 @@ export function LeadsTable({ leads, selectedId, onSelect }: LeadsTableProps) {
               </div>
             </TableCell>
             <TableCell>
-              <Badge variant="outline" className={getIntentColor(lead.intent)}>
+              <Badge className={getIntentColor(lead.intent)}>
                 {lead.intent}
               </Badge>
             </TableCell>
             <TableCell>
-              <Badge variant="secondary" className={getLeadStatusColor(lead.status)}>
+              <Badge className={getLeadStatusColor(lead.status)}>
                 {lead.status}
               </Badge>
             </TableCell>
