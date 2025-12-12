@@ -8,6 +8,12 @@ import {
   Clock,
   DollarSign,
   ShoppingCart,
+  Send,
+  Calendar,
+  Tag,
+  FileText,
+  Bell,
+  X,
 } from "lucide-react";
 import { Facebook } from "lucide-react";
 import { Conversation } from "@/types";
@@ -15,16 +21,41 @@ import { useState } from "react";
 
 interface LeadSnapshotProps {
   conversation: Conversation | null;
+  onVIPChange?: (isVIP: boolean) => void;
 }
 
 export function LeadSnapshot({
   conversation,
+  onVIPChange,
 }: LeadSnapshotProps) {
-  const [intent, setIntent] = useState("Order");
-  const [leadStatus, setLeadStatus] = useState("Hot Lead");
+  const [leadStatus, setLeadStatus] = useState("Active");
+  const [orders, setOrders] = useState("3");
+  const [isEditingOrders, setIsEditingOrders] = useState(false);
+  const [leadValue, setLeadValue] = useState("267.00");
+  const [isEditingValue, setIsEditingValue] = useState(false);
   const [notes, setNotes] = useState(
     "Customer interested in summer collection. Prefers size M. Follow up after sending photos.",
   );
+  const [tags, setTags] = useState<string[]>(["Returning", "Size M"]);
+  const [newTag, setNewTag] = useState("");
+
+  // Get VIP status from conversation
+  const isVIP = conversation?.isVIP ?? false;
+
+  const handleVIPToggle = () => {
+    onVIPChange?.(!isVIP);
+  };
+
+  const addTag = () => {
+    if (newTag.trim() && !tags.includes(newTag.trim())) {
+      setTags([...tags, newTag.trim()]);
+      setNewTag("");
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter((tag) => tag !== tagToRemove));
+  };
 
   if (!conversation) {
     return null;
@@ -80,42 +111,22 @@ export function LeadSnapshot({
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">
-              Intent
-            </label>
-            <div className="relative">
-              <select
-                value={intent}
-                onChange={(e) => setIntent(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 text-gray-900 border border-gray-300 rounded-lg text-sm appearance-none cursor-pointer hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
-              >
-                <option>Query</option>
-                <option>Order</option>
-                <option>Lead</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">
-              Lead Status
-            </label>
-            <div className="relative">
-              <select
-                value={leadStatus}
-                onChange={(e) => setLeadStatus(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 text-gray-900 border border-gray-300 rounded-lg text-sm appearance-none cursor-pointer hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
-              >
-                <option>Cold Lead</option>
-                <option>Warm Lead</option>
-                <option>Hot Lead</option>
-                <option>Converted</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+        <div>
+          <label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">
+            Status
+          </label>
+          <div className="relative">
+            <select
+              value={leadStatus}
+              onChange={(e) => setLeadStatus(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-50 text-gray-900 border border-gray-300 rounded-lg text-sm appearance-none cursor-pointer hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+            >
+              <option value="New">New</option>
+              <option value="Active">Active</option>
+              <option value="Converted">Converted</option>
+              <option value="Closed">Closed</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
         </div>
       </div>
@@ -128,29 +139,69 @@ export function LeadSnapshot({
           <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex items-center gap-2 mb-1">
               <ShoppingCart className="w-4 h-4 text-gray-400" />
-              <span className="text-xs text-gray-500">
-                Orders
-              </span>
+              <span className="text-xs text-gray-500">Orders</span>
             </div>
-            <div className="text-gray-900">3</div>
+            {isEditingOrders ? (
+              <input
+                type="text"
+                value={orders}
+                onChange={(e) => setOrders(e.target.value)}
+                onBlur={() => setIsEditingOrders(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setIsEditingOrders(false);
+                  }
+                }}
+                autoFocus
+                className="w-full text-gray-900 font-medium bg-white border border-gray-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+              />
+            ) : (
+              <div
+                onClick={() => setIsEditingOrders(true)}
+                className="text-gray-900 font-medium cursor-pointer hover:text-gray-600 transition-colors"
+              >
+                {orders || "0"}
+              </div>
+            )}
           </div>
           <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex items-center gap-2 mb-1">
               <Clock className="w-4 h-4 text-gray-400" />
-              <span className="text-xs text-gray-500">
-                Last Reply
-              </span>
+              <span className="text-xs text-gray-500">Last Reply</span>
             </div>
-            <div className="text-gray-900">2m ago</div>
+            <div className="text-gray-900 font-medium">2m ago</div>
           </div>
           <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 col-span-2">
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className="w-4 h-4 text-gray-400" />
-              <span className="text-xs text-gray-500">
-                Lead Value
-              </span>
+              <span className="text-xs text-gray-500">Lead Value</span>
             </div>
-            <div className="text-gray-900">$267.00</div>
+            {isEditingValue ? (
+              <div className="flex items-center">
+                <span className="text-gray-900 font-medium">$</span>
+                <input
+                  type="text"
+                  value={leadValue}
+                  onChange={(e) => setLeadValue(e.target.value)}
+                  onBlur={() => setIsEditingValue(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setIsEditingValue(false);
+                    }
+                  }}
+                  autoFocus
+                  className="w-full text-gray-900 font-medium bg-white border border-gray-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+                  placeholder="0.00"
+                />
+              </div>
+            ) : (
+              <div
+                onClick={() => setIsEditingValue(true)}
+                className="text-gray-900 font-medium cursor-pointer hover:text-gray-600 transition-colors"
+              >
+                ${leadValue}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -160,17 +211,87 @@ export function LeadSnapshot({
           Actions
         </h3>
         <div className="space-y-2">
-          <button className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 ease-out flex items-center justify-center gap-2">
-            <ExternalLink className="w-4 h-4" />
-            View Lead
-          </button>
           <button className="w-full px-4 py-2.5 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 ease-out flex items-center justify-center gap-2">
             <Plus className="w-4 h-4" />
             Create Order
           </button>
           <button className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 ease-out flex items-center justify-center gap-2">
-            <Star className="w-4 h-4" />
-            Mark as VIP
+            <FileText className="w-4 h-4" />
+            Send Template
+          </button>
+          <button className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 ease-out flex items-center justify-center gap-2">
+            <Bell className="w-4 h-4" />
+            Schedule Follow-up
+          </button>
+          <button className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 ease-out flex items-center justify-center gap-2">
+            <ExternalLink className="w-4 h-4" />
+            View Lead Profile
+          </button>
+        </div>
+
+        {/* VIP Toggle */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Star className={`w-4 h-4 ${isVIP ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400'}`} />
+              <span className="text-sm text-gray-700">VIP Customer</span>
+            </div>
+            <button
+              onClick={handleVIPToggle}
+              className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                isVIP ? 'bg-gray-900' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                  isVIP ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tags Section */}
+      <div className="p-6 border-b border-gray-200">
+        <h3 className="text-xs text-gray-500 uppercase tracking-wide mb-3">
+          Tags
+        </h3>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs"
+            >
+              {tag}
+              <button
+                onClick={() => removeTag(tag)}
+                className="hover:text-gray-900 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newTag}
+            onChange={(e) => setNewTag(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addTag();
+              }
+            }}
+            placeholder="Add tag..."
+            className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 transition-all"
+          />
+          <button
+            onClick={addTag}
+            className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
           </button>
         </div>
       </div>

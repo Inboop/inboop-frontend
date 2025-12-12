@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatMessageTime } from '@/lib/helpers';
-import { Send, Loader2, Instagram, MessageCircle, Facebook } from 'lucide-react';
+import { Send, Loader2, Instagram, MessageCircle, Facebook, Smile, Paperclip, MessageSquare, CheckCheck } from 'lucide-react';
 
 interface ChatViewProps {
   messages: Message[];
@@ -104,6 +104,35 @@ const getLeadStatusStyle = (status: string) => {
   }
 };
 
+// Consistent style for outgoing messages (from business)
+const getOutgoingBubbleStyle = () => {
+  return 'bg-gray-900 text-white';
+};
+
+// Platform-specific styles for incoming messages (from customer)
+const getIncomingBubbleStyle = (channel: ChannelType) => {
+  switch (channel) {
+    case 'instagram':
+      return 'bg-gray-100 text-gray-900';
+    case 'whatsapp':
+      return 'bg-white text-gray-900 border border-gray-200';
+    case 'messenger':
+      return 'bg-gray-100 text-gray-900';
+    default:
+      return 'bg-muted text-gray-900';
+  }
+};
+
+// Background for chat area
+const getChatAreaStyle = () => {
+  return 'bg-gray-50';
+};
+
+// Consistent send button style
+const getSendButtonStyle = () => {
+  return 'bg-gray-900 hover:bg-gray-800 text-white';
+};
+
 // Get initials from customer name
 const getInitials = (name?: string) => {
   if (!name) return '?';
@@ -132,9 +161,15 @@ export function ChatView({ messages, conversation }: ChatViewProps) {
 
   if (!conversation) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center text-muted-foreground">
-          <p>Select a conversation to view messages</p>
+      <div className="flex h-full items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <MessageSquare className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Select a conversation</h3>
+          <p className="text-sm text-gray-500 max-w-[250px]">
+            Choose a conversation from the list to view messages and reply to customers.
+          </p>
         </div>
       </div>
     );
@@ -178,7 +213,7 @@ export function ChatView({ messages, conversation }: ChatViewProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className={cn("flex-1 overflow-y-auto p-6 space-y-4", getChatAreaStyle())}>
         {messages.map((message) => (
           <div
             key={message.id}
@@ -189,45 +224,75 @@ export function ChatView({ messages, conversation }: ChatViewProps) {
           >
             <div
               className={cn(
-                'max-w-[70%] rounded-lg px-4 py-2',
+                'max-w-[70%] rounded-2xl px-4 py-2.5',
                 message.isFromCustomer
-                  ? 'bg-muted'
+                  ? 'bg-white border border-gray-200 text-gray-900'
                   : 'bg-gray-900 text-white'
               )}
             >
               <p className="text-sm">{message.text}</p>
             </div>
-            <p className="text-xs text-gray-400 mt-1 px-1">
-              {formatMessageTime(message.timestamp)}
-            </p>
+            <div className="flex items-center gap-1 mt-1 px-1">
+              <span className="text-xs text-gray-400">
+                {formatMessageTime(message.timestamp)}
+              </span>
+              {!message.isFromCustomer && (
+                <CheckCheck className="w-3.5 h-3.5 text-gray-400" />
+              )}
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="border-t p-4">
-        <div className="flex gap-2">
-          <Input
-            placeholder="Type a message..."
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            disabled={isSending}
-            className="focus:ring-gray-900 focus:border-gray-900 focus:ring-2"
-          />
+      <div className="border-t p-4 bg-white">
+        <div className="flex items-center gap-3">
+          {/* Message input */}
+          <div className="flex-1 relative">
+            <Input
+              placeholder="Type your message..."
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              disabled={isSending}
+              className="pr-20 py-5 rounded-xl border-gray-200 focus:ring-gray-900 focus:border-gray-900 focus:ring-2"
+            />
+            {/* Emoji and Attachment buttons inside input */}
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <button
+                type="button"
+                className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Add emoji"
+              >
+                <Smile className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Attach file"
+              >
+                <Paperclip className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Send button */}
           <Button
             onClick={handleSend}
             disabled={isSending || !messageText.trim()}
-            className="bg-gray-900 hover:bg-gray-800 text-white"
+            className="bg-gray-900 hover:bg-gray-800 text-white px-5 py-5 rounded-xl gap-2"
           >
             {isSending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <>
+                <Send className="h-4 w-4" />
+                Send
+              </>
             )}
           </Button>
         </div>

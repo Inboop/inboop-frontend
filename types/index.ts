@@ -32,6 +32,7 @@ export interface Conversation {
   lastMessageTime: Date;
   intent: IntentType;
   unreadCount?: number;
+  isVIP?: boolean;
   // Channel-specific IDs for external platforms
   externalConversationId?: string;
   externalCustomerId?: string;
