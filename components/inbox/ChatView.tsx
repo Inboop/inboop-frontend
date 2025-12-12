@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatMessageTime } from '@/lib/helpers';
-import { Send, Loader2, Instagram, MessageCircle, Facebook } from 'lucide-react';
+import { Send, Loader2, Instagram, MessageCircle, Facebook, Smile, Paperclip, MessageSquare, CheckCheck } from 'lucide-react';
 
 interface ChatViewProps {
   messages: Message[];
@@ -87,21 +87,48 @@ const getChannelName = (channel: ChannelType) => {
   }
 };
 
-const getLeadStatusStyle = (status: string) => {
+const getStatusStyle = (status: string) => {
   switch (status) {
-    case 'Hot Lead':
-      return 'text-orange-600 bg-orange-50';
-    case 'Warm Lead':
-      return 'text-amber-600 bg-amber-50';
+    case 'New':
+      return 'text-blue-600 bg-blue-50';
+    case 'Active':
+      return 'text-[#2F5D3E] bg-green-50';
     case 'Converted':
       return 'text-emerald-600 bg-emerald-50';
-    case 'New Lead':
-      return 'text-blue-600 bg-blue-50';
-    case 'Cold Lead':
-      return 'text-slate-600 bg-slate-50';
+    case 'Closed':
+      return 'text-gray-600 bg-gray-100';
     default:
       return 'text-gray-600 bg-gray-50';
   }
+};
+
+// Consistent style for outgoing messages (from business)
+const getOutgoingBubbleStyle = () => {
+  return 'bg-gray-900 text-white';
+};
+
+// Platform-specific styles for incoming messages (from customer)
+const getIncomingBubbleStyle = (channel: ChannelType) => {
+  switch (channel) {
+    case 'instagram':
+      return 'bg-gray-100 text-gray-900';
+    case 'whatsapp':
+      return 'bg-white text-gray-900 border border-gray-200';
+    case 'messenger':
+      return 'bg-gray-100 text-gray-900';
+    default:
+      return 'bg-muted text-gray-900';
+  }
+};
+
+// Background for chat area
+const getChatAreaStyle = () => {
+  return 'bg-gray-50';
+};
+
+// Consistent send button style
+const getSendButtonStyle = () => {
+  return 'bg-gray-900 hover:bg-gray-800 text-white';
 };
 
 // Get initials from customer name
@@ -132,53 +159,58 @@ export function ChatView({ messages, conversation }: ChatViewProps) {
 
   if (!conversation) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center text-muted-foreground">
-          <p>Select a conversation to view messages</p>
+      <div className="flex h-full items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <MessageSquare className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Select a conversation</h3>
+          <p className="text-sm text-gray-500 max-w-[250px]">
+            Choose a conversation from the list to view messages and reply to customers.
+          </p>
         </div>
       </div>
     );
   }
 
-  // Mock lead data based on conversation (in real app, this would come from API)
-  const mockLeadStatus = conversation.intent === 'Order' ? 'Hot Lead' :
-                         conversation.intent === 'Inquiry' ? 'Warm Lead' : 'New Lead';
+  // Get status from conversation
+  const status = conversation.status ?? 'New';
   const mockOrders = conversation.intent === 'Order' ? 2 : 0;
 
   return (
     <div className="flex h-full flex-col">
       {/* Enhanced Header */}
-      <div className="border-b p-4 bg-white">
-        <div className="flex items-center gap-3">
+      <div className="border-b p-3 bg-white">
+        <div className="flex items-center gap-2">
           {/* Avatar */}
-          <div className="w-10 h-10 bg-[#1a1f2e] rounded-full flex items-center justify-center text-white font-medium">
+          <div className="w-8 h-8 bg-[#1a1f2e] rounded-full flex items-center justify-center text-white text-xs font-medium">
             {getInitials(conversation.customerName)}
           </div>
 
           {/* Details */}
-          <div className="flex-1">
-            <h3 className="font-semibold text-gray-900">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium text-sm text-gray-900 truncate">
               {conversation.customerName || conversation.customerHandle}
             </h3>
-            <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 flex-wrap">
               <span className="flex items-center gap-1">
                 {getChannelIcon(conversation.channel)}
                 {getChannelName(conversation.channel)}
               </span>
               <span className="text-gray-300">•</span>
-              <span className="text-green-600">Active now</span>
+              <span className="text-green-600">Active</span>
               <span className="text-gray-300">•</span>
               <span>{mockOrders} orders</span>
               <span className="text-gray-300">•</span>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getLeadStatusStyle(mockLeadStatus)}`}>
-                {mockLeadStatus}
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getStatusStyle(status)}`}>
+                {status}
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className={cn("flex-1 overflow-y-auto p-4 space-y-3", getChatAreaStyle())}>
         {messages.map((message) => (
           <div
             key={message.id}
@@ -189,45 +221,75 @@ export function ChatView({ messages, conversation }: ChatViewProps) {
           >
             <div
               className={cn(
-                'max-w-[70%] rounded-lg px-4 py-2',
+                'max-w-[70%] rounded-xl px-3 py-2',
                 message.isFromCustomer
-                  ? 'bg-muted'
-                  : 'bg-gray-900 text-white'
+                  ? 'bg-white border border-gray-200 text-gray-900'
+                  : 'bg-[#2F5D3E] text-white'
               )}
             >
               <p className="text-sm">{message.text}</p>
             </div>
-            <p className="text-xs text-gray-400 mt-1 px-1">
-              {formatMessageTime(message.timestamp)}
-            </p>
+            <div className="flex items-center gap-1 mt-0.5 px-1">
+              <span className="text-[10px] text-gray-400">
+                {formatMessageTime(message.timestamp)}
+              </span>
+              {!message.isFromCustomer && (
+                <CheckCheck className="w-3 h-3 text-gray-400" />
+              )}
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="border-t p-4">
-        <div className="flex gap-2">
-          <Input
-            placeholder="Type a message..."
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            disabled={isSending}
-            className="focus:ring-gray-900 focus:border-gray-900 focus:ring-2"
-          />
+      <div className="border-t p-3 bg-white">
+        <div className="flex items-center gap-2">
+          {/* Message input */}
+          <div className="flex-1 relative">
+            <Input
+              placeholder="Type your message..."
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              disabled={isSending}
+              className="pr-16 py-2 text-sm rounded-lg border-gray-200 focus:ring-[#2F5D3E] focus:border-[#2F5D3E] focus:ring-2"
+            />
+            {/* Emoji and Attachment buttons inside input */}
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+              <button
+                type="button"
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Add emoji"
+              >
+                <Smile className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Attach file"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Send button */}
           <Button
             onClick={handleSend}
             disabled={isSending || !messageText.trim()}
-            className="bg-gray-900 hover:bg-gray-800 text-white"
+            className="bg-[#2F5D3E] hover:bg-[#234430] text-white px-3 py-2 rounded-lg gap-1.5 text-sm"
           >
             {isSending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <>
+                <Send className="h-3.5 w-3.5" />
+                Send
+              </>
             )}
           </Button>
         </div>

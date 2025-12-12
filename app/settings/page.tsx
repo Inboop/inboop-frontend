@@ -1,13 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { AppLayout } from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Instagram, CheckCircle, XCircle } from 'lucide-react';
 
@@ -27,9 +25,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <AppLayout title="Settings">
-      <div className="h-full overflow-auto p-6">
-        <div className="mx-auto max-w-3xl space-y-6">
+    <div className="h-full overflow-auto p-6">
+      <div className="mx-auto max-w-3xl space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Instagram Connection</CardTitle>
@@ -127,8 +124,7 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
-        </div>
       </div>
-    </AppLayout>
+    </div>
   );
 }

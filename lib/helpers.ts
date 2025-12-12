@@ -64,5 +64,34 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatRelativeTime(date: Date): string {
-  return formatDistanceToNow(date, { addSuffix: true });
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const minutes = Math.floor(diff / (1000 * 60));
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  // Under an hour - show minutes
+  if (minutes < 60) {
+    return minutes <= 1 ? 'Just now' : `${minutes}m ago`;
+  }
+
+  // Under 24 hours - show hours
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+
+  // Yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return `Yesterday ${format(date, 'h:mm a')}`;
+  }
+
+  // Within a week - show days ago
+  if (days < 7) {
+    return `${days}d ago`;
+  }
+
+  // Older than a week - show date
+  return format(date, 'MMM d');
 }

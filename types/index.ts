@@ -21,6 +21,9 @@ export interface Message {
   channel: ChannelType;
 }
 
+// Conversation status
+export type ConversationStatus = 'New' | 'Active' | 'Converted' | 'Closed';
+
 // Conversation interface
 export interface Conversation {
   id: string;
@@ -32,6 +35,8 @@ export interface Conversation {
   lastMessageTime: Date;
   intent: IntentType;
   unreadCount?: number;
+  isVIP?: boolean;
+  status?: ConversationStatus;
   // Channel-specific IDs for external platforms
   externalConversationId?: string;
   externalCustomerId?: string;

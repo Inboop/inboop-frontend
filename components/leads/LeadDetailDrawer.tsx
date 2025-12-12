@@ -148,7 +148,7 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Internal Notes</CardTitle>
+              <CardTitle className="text-sm">Notes</CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea

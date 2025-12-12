@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { AppLayout } from '@/components/AppLayout';
 import { OrdersTable } from '@/components/orders/OrdersTable';
 import { OrderDetailDrawer } from '@/components/orders/OrderDetailDrawer';
 import { mockOrders } from '@/lib/mockData';
@@ -14,7 +13,7 @@ export default function OrdersPage() {
     : null;
 
   return (
-    <AppLayout title="Orders">
+    <>
       <div className="flex h-full flex-col">
         <div className="flex-1 overflow-auto p-6">
           <OrdersTable
@@ -31,6 +30,6 @@ export default function OrdersPage() {
           onClose={() => setSelectedOrderId(null)}
         />
       )}
-    </AppLayout>
+    </>
   );
 }
