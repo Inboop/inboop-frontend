@@ -74,7 +74,7 @@ export const mockConversations: Conversation[] = [
     profilePicture: 'https://randomuser.me/api/portraits/men/22.jpg',
     lastMessage: 'Thanks for the quick response!',
     lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 5),
-    intent: 'Support',
+    intent: 'Issue',
     unreadCount: 0,
     externalConversationId: 'fb_conv_999',
     externalCustomerId: 'fb_user_888',
@@ -98,7 +98,7 @@ export const mockConversations: Conversation[] = [
     profilePicture: 'https://randomuser.me/api/portraits/men/45.jpg',
     lastMessage: 'My order arrived damaged. Please help.',
     lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 7),
-    intent: 'Support',
+    intent: 'Issue',
     unreadCount: 2,
   },
   {
@@ -132,7 +132,7 @@ export const mockConversations: Conversation[] = [
     profilePicture: 'https://randomuser.me/api/portraits/women/56.jpg',
     lastMessage: 'Can I return the item if it doesnt fit?',
     lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 12),
-    intent: 'Support',
+    intent: 'Issue',
     unreadCount: 1,
   },
   {
@@ -165,7 +165,7 @@ export const mockConversations: Conversation[] = [
     profilePicture: 'https://randomuser.me/api/portraits/men/83.jpg',
     lastMessage: 'I need to change my delivery address',
     lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 18),
-    intent: 'Support',
+    intent: 'Issue',
     unreadCount: 4,
   },
   {
