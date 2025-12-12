@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { Conversation, ChannelType } from '@/types';
+import { formatRelativeTime } from '@/lib/helpers';
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -98,10 +99,14 @@ const getIntentStyle = (intent: string) => {
   switch (intent) {
     case 'Order':
       return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-    case 'Query':
+    case 'Inquiry':
       return 'bg-blue-100 text-blue-700 border-blue-200';
-    case 'Lead':
-      return 'bg-orange-100 text-orange-700 border-orange-200';
+    case 'Delivery':
+      return 'bg-purple-100 text-purple-700 border-purple-200';
+    case 'Payment':
+      return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    case 'Issue':
+      return 'bg-red-100 text-red-700 border-red-200';
     default:
       return 'bg-gray-100 text-gray-700 border-gray-200';
   }
@@ -119,6 +124,17 @@ const getPlatformBorderColor = (channel: ChannelType) => {
   }
 };
 
+// Get initials from customer name
+const getInitials = (name?: string) => {
+  if (!name) return '?';
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
 export default function ConversationList({
   conversations,
   selectedId,
@@ -128,7 +144,8 @@ export default function ConversationList({
   const [activeFilter, setActiveFilter] = useState<ChannelType | 'all'>('all');
 
   const filteredConversations = conversations.filter((conv) => {
-    const matchesSearch = conv.customerName
+    const customerName = conv.customerName || conv.customerHandle;
+    const matchesSearch = customerName
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
     const matchesFilter =
@@ -137,7 +154,7 @@ export default function ConversationList({
   });
 
   return (
-    <div className="w-[340px] border-r border-gray-200 flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-white">
       {/* Search */}
       <div className="p-4">
         <div className="relative">
@@ -150,18 +167,18 @@ export default function ConversationList({
             placeholder="Search by username or message..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
           />
         </div>
       </div>
 
       {/* Channel Filters */}
-      <div className="px-4 pb-3 flex gap-2">
+      <div className="px-4 pb-3 flex gap-2 overflow-x-auto scrollbar-hide">
         {channelFilters.map((filter) => (
           <button
             key={filter.value}
             onClick={() => setActiveFilter(filter.value)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 flex-shrink-0 ${
               activeFilter === filter.value
                 ? 'bg-[#1a1f2e] text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -174,22 +191,22 @@ export default function ConversationList({
       </div>
 
       {/* Conversation List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {filteredConversations.map((conversation) => (
           <div
             key={conversation.id}
             onClick={() => onSelect(conversation.id)}
-            className={`px-4 py-3 cursor-pointer border-l-[3px] transition-all duration-200 ${
+            className={`px-4 py-3 cursor-pointer rounded-xl transition-all duration-200 ease-out ${
               selectedId === conversation.id
-                ? `bg-gray-50 ${getPlatformBorderColor(conversation.channel)} shadow-md`
-                : 'border-l-transparent hover:bg-gray-50/50 hover:shadow-sm hover:-translate-y-[1px]'
+                ? `bg-white ${getPlatformBorderColor(conversation.channel)} border-l-[3px] shadow-lg scale-[1.01]`
+                : 'bg-transparent hover:bg-white hover:shadow-md hover:-translate-y-0.5 hover:scale-[1.01] border-l-[3px] border-l-transparent'
             }`}
           >
             <div className="flex items-start gap-3">
               {/* Avatar */}
               <div className="relative flex-shrink-0">
                 <div className="w-12 h-12 bg-[#1a1f2e] rounded-full flex items-center justify-center text-white font-medium">
-                  {conversation.customerInitials}
+                  {getInitials(conversation.customerName)}
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
                   {getChannelIcon(conversation.channel)}
@@ -200,10 +217,10 @@ export default function ConversationList({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="font-semibold text-gray-900 truncate">
-                    {conversation.customerName}
+                    {conversation.customerName || conversation.customerHandle}
                   </h3>
                   <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                    {conversation.lastMessageTime}
+                    {formatRelativeTime(conversation.lastMessageTime)}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 truncate mb-2">
@@ -217,9 +234,9 @@ export default function ConversationList({
                   >
                     {conversation.intent}
                   </span>
-                  {conversation.intentCount && conversation.intentCount > 1 && (
-                    <span className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600">
-                      {conversation.intentCount}
+                  {conversation.unreadCount && conversation.unreadCount > 0 && (
+                    <span className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-xs font-medium text-white">
+                      {conversation.unreadCount}
                     </span>
                   )}
                 </div>

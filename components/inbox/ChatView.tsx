@@ -1,19 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, Smile, Paperclip, CheckCheck } from 'lucide-react';
-import { Conversation, Lead, ChannelType, LeadStatus } from '@/types';
+import { Message, Conversation, ChannelType } from '@/types';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { formatMessageTime } from '@/lib/helpers';
+import { Send, Loader2, Instagram, MessageCircle, Facebook } from 'lucide-react';
 
 interface ChatViewProps {
+  messages: Message[];
   conversation: Conversation | null;
-  lead: Lead | null;
 }
 
 // Instagram gradient icon
 const InstagramIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <defs>
-      <linearGradient id="ig-gradient-chat" x1="0%" y1="100%" x2="100%" y2="0%">
+      <linearGradient id="ig-gradient-header" x1="0%" y1="100%" x2="100%" y2="0%">
         <stop offset="0%" stopColor="#FFDC80" />
         <stop offset="25%" stopColor="#F77737" />
         <stop offset="50%" stopColor="#E1306C" />
@@ -21,9 +25,9 @@ const InstagramIcon = ({ size = 16 }: { size?: number }) => (
         <stop offset="100%" stopColor="#833AB4" />
       </linearGradient>
     </defs>
-    <rect x="2" y="2" width="20" height="20" rx="5" stroke="url(#ig-gradient-chat)" strokeWidth="2" />
-    <circle cx="12" cy="12" r="4" stroke="url(#ig-gradient-chat)" strokeWidth="2" />
-    <circle cx="17.5" cy="6.5" r="1.5" fill="url(#ig-gradient-chat)" />
+    <rect x="2" y="2" width="20" height="20" rx="5" stroke="url(#ig-gradient-header)" strokeWidth="2" />
+    <circle cx="12" cy="12" r="4" stroke="url(#ig-gradient-header)" strokeWidth="2" />
+    <circle cx="17.5" cy="6.5" r="1.5" fill="url(#ig-gradient-header)" />
   </svg>
 );
 
@@ -45,14 +49,14 @@ const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
 const MessengerIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <defs>
-      <linearGradient id="msg-gradient-chat" x1="0%" y1="100%" x2="100%" y2="0%">
+      <linearGradient id="msg-gradient-header" x1="0%" y1="100%" x2="100%" y2="0%">
         <stop offset="0%" stopColor="#0099FF" />
         <stop offset="100%" stopColor="#A033FF" />
       </linearGradient>
     </defs>
     <path
       d="M12 2C6.36 2 2 6.13 2 11.7c0 2.91 1.19 5.44 3.14 7.17.16.13.26.35.27.57l.05 1.78c.02.63.67 1.04 1.24.79l1.99-.88c.17-.07.36-.09.54-.05.91.25 1.87.38 2.77.38 5.64 0 10-4.13 10-9.7S17.64 2 12 2z"
-      fill="url(#msg-gradient-chat)"
+      fill="url(#msg-gradient-header)"
     />
     <path
       d="M6.53 14.75l2.68-4.26c.43-.68 1.35-.85 1.98-.36l2.13 1.6c.2.15.47.15.67 0l2.87-2.18c.38-.29.88.14.63.54l-2.68 4.26c-.43.68-1.35.85-1.98.36l-2.13-1.6c-.2-.15-.47-.15-.67 0l-2.87 2.18c-.38.29-.88-.14-.63-.54z"
@@ -83,7 +87,7 @@ const getChannelName = (channel: ChannelType) => {
   }
 };
 
-const getLeadStatusStyle = (status: LeadStatus) => {
+const getLeadStatusStyle = (status: string) => {
   switch (status) {
     case 'Hot Lead':
       return 'text-orange-600 bg-orange-50';
@@ -95,130 +99,137 @@ const getLeadStatusStyle = (status: LeadStatus) => {
       return 'text-blue-600 bg-blue-50';
     case 'Cold Lead':
       return 'text-slate-600 bg-slate-50';
-    case 'Lost':
-      return 'text-red-600 bg-red-50';
     default:
       return 'text-gray-600 bg-gray-50';
   }
 };
 
-export default function ChatView({ conversation, lead }: ChatViewProps) {
-  const [message, setMessage] = useState('');
+// Get initials from customer name
+const getInitials = (name?: string) => {
+  if (!name) return '?';
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+export function ChatView({ messages, conversation }: ChatViewProps) {
+  const [messageText, setMessageText] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!messageText.trim() || !conversation) return;
+
+    setIsSending(true);
+    // TODO: Implement API call to send message
+    setTimeout(() => {
+      setMessageText('');
+      setIsSending(false);
+    }, 500);
+  };
 
   if (!conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Select a conversation to start messaging</p>
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center text-muted-foreground">
+          <p>Select a conversation to view messages</p>
+        </div>
       </div>
     );
   }
 
-  const handleSend = () => {
-    if (message.trim()) {
-      console.log('Sending message:', message);
-      setMessage('');
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+  // Mock lead data based on conversation (in real app, this would come from API)
+  const mockLeadStatus = conversation.intent === 'Order' ? 'Hot Lead' :
+                         conversation.intent === 'Inquiry' ? 'Warm Lead' : 'New Lead';
+  const mockOrders = conversation.intent === 'Order' ? 2 : 0;
 
   return (
-    <div className="flex-1 flex flex-col bg-white">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
+    <div className="flex h-full flex-col">
+      {/* Enhanced Header */}
+      <div className="border-b p-4 bg-white">
         <div className="flex items-center gap-3">
+          {/* Avatar */}
           <div className="w-10 h-10 bg-[#1a1f2e] rounded-full flex items-center justify-center text-white font-medium">
-            {conversation.customerInitials}
+            {getInitials(conversation.customerName)}
           </div>
+
+          {/* Details */}
           <div className="flex-1">
-            <h2 className="font-semibold text-gray-900">
-              {conversation.customerName}
-            </h2>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <h3 className="font-semibold text-gray-900">
+              {conversation.customerName || conversation.customerHandle}
+            </h3>
+            <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
               <span className="flex items-center gap-1">
                 {getChannelIcon(conversation.channel)}
                 {getChannelName(conversation.channel)}
               </span>
-              {lead && lead.orders > 0 && (
-                <>
-                  <span className="text-gray-300">•</span>
-                  <span>{lead.orders} order{lead.orders > 1 ? 's' : ''}</span>
-                </>
-              )}
-              {lead && (
-                <>
-                  <span className="text-gray-300">•</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getLeadStatusStyle(lead.status)}`}>
-                    {lead.status}
-                  </span>
-                </>
-              )}
+              <span className="text-gray-300">•</span>
+              <span className="text-green-600">Active now</span>
+              <span className="text-gray-300">•</span>
+              <span>{mockOrders} orders</span>
+              <span className="text-gray-300">•</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getLeadStatusStyle(mockLeadStatus)}`}>
+                {mockLeadStatus}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {conversation.messages.map((msg) => (
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.map((message) => (
           <div
-            key={msg.id}
-            className={`flex ${msg.isFromCustomer ? 'justify-start' : 'justify-end'}`}
+            key={message.id}
+            className={cn(
+              'flex flex-col',
+              message.isFromCustomer ? 'items-start' : 'items-end'
+            )}
           >
-            <div className="max-w-[70%]">
-              {msg.isFromCustomer ? (
-                <div className="bg-gray-100 rounded-xl px-4 py-3">
-                  <p className="text-gray-900">{msg.content}</p>
-                </div>
-              ) : (
-                <div className="bg-[#1a1f2e] rounded-xl px-4 py-3">
-                  <p className="text-white">{msg.content}</p>
-                </div>
+            <div
+              className={cn(
+                'max-w-[70%] rounded-lg px-4 py-2',
+                message.isFromCustomer
+                  ? 'bg-muted'
+                  : 'bg-gray-900 text-white'
               )}
-              <div className={`flex items-center gap-1 mt-1 ${msg.isFromCustomer ? 'justify-start' : 'justify-end'}`}>
-                <span className="text-xs text-gray-500">{msg.timestamp}</span>
-                {!msg.isFromCustomer && (
-                  <CheckCheck size={14} className="text-blue-500" />
-                )}
-              </div>
+            >
+              <p className="text-sm">{message.text}</p>
             </div>
+            <p className="text-xs text-gray-400 mt-1 px-1">
+              {formatMessageTime(message.timestamp)}
+            </p>
           </div>
         ))}
       </div>
 
-      {/* Message Input */}
-      <div className="px-6 py-4 border-t border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              placeholder="Type your message..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="w-full px-4 py-3 pr-20 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                <Smile size={20} />
-              </button>
-              <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                <Paperclip size={20} />
-              </button>
-            </div>
-          </div>
-          <button
+      <div className="border-t p-4">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Type a message..."
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            disabled={isSending}
+            className="focus:ring-gray-900 focus:border-gray-900 focus:ring-2"
+          />
+          <Button
             onClick={handleSend}
-            className="bg-[#1a8f6c] hover:bg-[#167a5c] text-white px-6 py-3 rounded-full flex items-center gap-2 font-medium transition-colors"
+            disabled={isSending || !messageText.trim()}
+            className="bg-gray-900 hover:bg-gray-800 text-white"
           >
-            <Send size={18} />
-            Send
-          </button>
+            {isSending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
         </div>
       </div>
     </div>

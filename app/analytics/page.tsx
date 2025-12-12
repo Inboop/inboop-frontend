@@ -1,12 +1,11 @@
 'use client';
 
-import Sidebar from '@/components/Sidebar';
+import { AppLayout } from '@/components/AppLayout';
 import { BarChart3 } from 'lucide-react';
 
 export default function AnalyticsPage() {
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
+    <AppLayout title="Analytics">
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -16,6 +15,6 @@ export default function AnalyticsPage() {
           <p className="text-gray-500">Analytics dashboard coming soon</p>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

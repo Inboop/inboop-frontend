@@ -1,21 +1,36 @@
 'use client';
 
-import Sidebar from '@/components/Sidebar';
-import { ShoppingCart } from 'lucide-react';
+import { useState } from 'react';
+import { AppLayout } from '@/components/AppLayout';
+import { OrdersTable } from '@/components/orders/OrdersTable';
+import { OrderDetailDrawer } from '@/components/orders/OrderDetailDrawer';
+import { mockOrders } from '@/lib/mockData';
 
 export default function OrdersPage() {
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  const selectedOrder = selectedOrderId
+    ? mockOrders.find((o) => o.id === selectedOrderId) || null
+    : null;
+
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShoppingCart size={32} className="text-gray-500" />
-          </div>
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">Orders</h1>
-          <p className="text-gray-500">Order management coming soon</p>
+    <AppLayout title="Orders">
+      <div className="flex h-full flex-col">
+        <div className="flex-1 overflow-auto p-6">
+          <OrdersTable
+            orders={mockOrders}
+            selectedId={selectedOrderId}
+            onSelect={setSelectedOrderId}
+          />
         </div>
       </div>
-    </div>
+
+      {selectedOrder && (
+        <OrderDetailDrawer
+          order={selectedOrder}
+          onClose={() => setSelectedOrderId(null)}
+        />
+      )}
+    </AppLayout>
   );
 }
