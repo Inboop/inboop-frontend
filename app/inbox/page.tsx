@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { AppLayout } from '@/components/AppLayout';
-import { ConversationList } from '@/components/inbox/ConversationList';
+import { Sidebar } from '@/components/Sidebar';
+import ConversationList from '@/components/inbox/ConversationList';
 import { ChatView } from '@/components/inbox/ChatView';
 import { LeadSnapshot } from '@/components/inbox/LeadSnapshot';
 import { mockConversations, mockMessages } from '@/lib/mockData';
@@ -18,9 +17,10 @@ export default function InboxPage() {
   const messages = selectedConversationId ? mockMessages[selectedConversationId] || [] : [];
 
   return (
-    <AppLayout title="Inbox">
-      <div className="flex h-full">
-        <div className="w-80 border-r bg-card">
+    <div className="flex h-screen overflow-hidden bg-background">
+      <Sidebar />
+      <div className="flex flex-1 overflow-hidden">
+        <div className="w-96 flex-shrink-0 border-r bg-gray-50 overflow-hidden">
           <ConversationList
             conversations={mockConversations}
             selectedId={selectedConversationId}
@@ -28,18 +28,17 @@ export default function InboxPage() {
           />
         </div>
 
-        <div className="flex-1 bg-background">
+        <div className="flex-1 min-w-0 bg-background">
           <ChatView
             messages={messages}
-            conversationId={selectedConversationId}
-            instagramHandle={selectedConversation?.instagramHandle}
+            conversation={selectedConversation}
           />
         </div>
 
-        <div className="w-80 border-l bg-card">
+        <div className="w-96 flex-shrink-0 border-l bg-white overflow-hidden">
           <LeadSnapshot conversation={selectedConversation} />
         </div>
       </div>
-    </AppLayout>
+    </div>
   );
 }

@@ -1,19 +1,20 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Inbox, Users, ShoppingBag, BarChart3, Settings } from 'lucide-react';
 
-interface SidebarProps {
-  activeSection: string;
-  onSectionChange: (section: string) => void;
-}
-
 const navItems = [
-  { name: 'Inbox', icon: Inbox },
-  { name: 'Leads', icon: Users },
-  { name: 'Orders', icon: ShoppingBag },
-  { name: 'Analytics', icon: BarChart3 },
-  { name: 'Settings', icon: Settings }
+  { name: 'Inbox', href: '/inbox', icon: Inbox },
+  { name: 'Leads', href: '/leads', icon: Users },
+  { name: 'Orders', href: '/orders', icon: ShoppingBag },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
-export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
+export function Sidebar() {
+  const pathname = usePathname();
+
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
       <div className="p-6">
@@ -28,21 +29,21 @@ export function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
       <nav className="flex-1 px-3">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeSection === item.name;
+          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
 
           return (
-            <button
+            <Link
               key={item.name}
-              onClick={() => onSectionChange(item.name)}
-              className={`w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-lg transition-all ${
+              href={item.href}
+              className={`w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-lg transition-all duration-200 ease-out ${
                 isActive
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  ? 'bg-gray-900 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 hover:translate-x-1 hover:shadow-sm'
               }`}
             >
               <Icon className="w-5 h-5" />
               <span>{item.name}</span>
-            </button>
+            </Link>
           );
         })}
       </nav>

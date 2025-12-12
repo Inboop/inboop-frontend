@@ -10,11 +10,11 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { Facebook } from "lucide-react";
-import { Conversation } from "../App";
+import { Conversation } from "@/types";
 import { useState } from "react";
 
 interface LeadSnapshotProps {
-  conversation?: Conversation;
+  conversation: Conversation | null;
 }
 
 export function LeadSnapshot({
@@ -30,11 +30,22 @@ export function LeadSnapshot({
     return null;
   }
 
-  const isWhatsApp = conversation.user.platform === "whatsapp";
-  const isFacebook = conversation.user.platform === "facebook";
+  const isWhatsApp = conversation.channel === "whatsapp";
+  const isFacebook = conversation.channel === "messenger";
+
+  // Get initials from customer name
+  const getInitials = (name?: string) => {
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
-    <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
+    <div className="h-full bg-white overflow-y-auto">
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-sm text-gray-500 uppercase tracking-wide mb-4">
           Lead Snapshot
@@ -43,11 +54,11 @@ export function LeadSnapshot({
         <div className="flex flex-col items-center text-center mb-6">
           <div className="w-16 h-16 rounded-full bg-gray-900 flex items-center justify-center mb-3">
             <span className="text-white text-xl">
-              {conversation.user.initials}
+              {getInitials(conversation.customerName)}
             </span>
           </div>
           <h3 className="text-lg text-gray-900 mb-1">
-            {conversation.user.name}
+            {conversation.customerName || conversation.customerHandle}
           </h3>
           <div className="flex items-center gap-2 text-sm text-gray-500">
             {isWhatsApp ? (
@@ -149,15 +160,15 @@ export function LeadSnapshot({
           Actions
         </h3>
         <div className="space-y-2">
-          <button className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center justify-center gap-2">
+          <button className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 ease-out flex items-center justify-center gap-2">
             <ExternalLink className="w-4 h-4" />
             View Lead
           </button>
-          <button className="w-full px-4 py-2.5 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
+          <button className="w-full px-4 py-2.5 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 ease-out flex items-center justify-center gap-2">
             <Plus className="w-4 h-4" />
             Create Order
           </button>
-          <button className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center justify-center gap-2">
+          <button className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 ease-out flex items-center justify-center gap-2">
             <Star className="w-4 h-4" />
             Mark as VIP
           </button>
@@ -175,7 +186,7 @@ export function LeadSnapshot({
           rows={5}
           placeholder="Add internal notes about this lead..."
         />
-        <button className="mt-3 w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors">
+        <button className="mt-3 w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 ease-out">
           Save Notes
         </button>
       </div>

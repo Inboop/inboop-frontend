@@ -62,10 +62,10 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
               <div className="flex items-center gap-3">
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={lead.profilePicture} />
-                  <AvatarFallback>{getInitials(lead.instagramHandle)}</AvatarFallback>
+                  <AvatarFallback>{getInitials(lead.customerHandle)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle className="text-base">{lead.instagramHandle}</CardTitle>
+                  <CardTitle className="text-base">{lead.customerName || lead.customerHandle}</CardTitle>
                   <p className="text-xs text-muted-foreground">
                     Created {formatMessageTime(lead.createdAt)}
                   </p>

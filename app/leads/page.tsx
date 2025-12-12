@@ -23,7 +23,7 @@ export default function LeadsPage() {
     const matchesIntent = !selectedIntent || lead.intent === selectedIntent;
     const matchesSearch =
       !searchQuery ||
-      lead.instagramHandle.toLowerCase().includes(searchQuery.toLowerCase());
+      lead.customerHandle.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesIntent && matchesSearch;
   });
 
