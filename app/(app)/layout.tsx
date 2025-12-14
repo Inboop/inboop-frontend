@@ -6,6 +6,8 @@ import { GlobalHeader } from "@/components/GlobalHeader";
 import { Sidebar } from "@/components/Sidebar";
 import { useAuth } from '@/contexts/AuthContext';
 
+const MARKETING_URL = process.env.NEXT_PUBLIC_MARKETING_URL || 'https://inboop.com';
+
 export default function AppLayout({
   children,
 }: Readonly<{
@@ -16,7 +18,12 @@ export default function AppLayout({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+      const isProduction = typeof window !== 'undefined' && !window.location.hostname.includes('localhost');
+      if (isProduction) {
+        window.location.href = `${MARKETING_URL}/login`;
+      } else {
+        router.push('/login');
+      }
     }
   }, [isAuthenticated, isLoading, router]);
 

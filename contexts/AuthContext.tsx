@@ -3,7 +3,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://52.14.233.123:8080';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.inboop.com';
+const MARKETING_URL = process.env.NEXT_PUBLIC_MARKETING_URL || 'https://inboop.com';
+
+const isProduction = typeof window !== 'undefined' && !window.location.hostname.includes('localhost');
 
 interface User {
   id: number;
@@ -31,6 +35,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // Check for tokens in URL (from cross-subdomain redirect)
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get('token');
+      const refreshFromUrl = urlParams.get('refresh');
+
+      if (tokenFromUrl && refreshFromUrl) {
+        localStorage.setItem('accessToken', tokenFromUrl);
+        localStorage.setItem('refreshToken', refreshFromUrl);
+        // Clean up URL
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    }
     checkAuth();
   }, []);
 
@@ -102,6 +120,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
   };
 
+  const redirectToApp = (accessToken: string, refreshToken: string) => {
+    if (isProduction) {
+      // Cross-subdomain redirect with tokens
+      const url = new URL('/inbox', APP_URL);
+      url.searchParams.set('token', accessToken);
+      url.searchParams.set('refresh', refreshToken);
+      window.location.href = url.toString();
+    } else {
+      router.push('/inbox');
+    }
+  };
+
   const login = async (email: string, password: string) => {
     const response = await fetch(`${API_URL}/api/v1/auth/login`, {
       method: 'POST',
@@ -122,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
     setIsAuthenticated(true);
-    router.push('/inbox');
+    redirectToApp(data.accessToken, data.refreshToken);
   };
 
   const register = async (name: string, email: string, password: string) => {
@@ -145,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
     setIsAuthenticated(true);
-    router.push('/inbox');
+    redirectToApp(data.accessToken, data.refreshToken);
   };
 
   const loginWithGoogle = async (credential: string) => {
@@ -168,12 +198,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
     setIsAuthenticated(true);
-    router.push('/inbox');
+    redirectToApp(data.accessToken, data.refreshToken);
   };
 
   const logout = () => {
     clearAuth();
-    router.push('/login');
+    if (isProduction) {
+      window.location.href = `${MARKETING_URL}/login`;
+    } else {
+      router.push('/login');
+    }
   };
 
   return (
