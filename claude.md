@@ -363,3 +363,60 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID=<google-client-id>
 - Branch naming: `feature/<feature-name>`, `fix/<bug-name>`
 - Commit messages: Single-line, descriptive
 - Always create feature branches for new work
+
+## Instagram OAuth Integration
+
+### Overview
+The Settings page includes Instagram Business account connection via OAuth.
+
+### Flow
+1. User clicks "Connect Instagram" button in Settings → Integrations tab
+2. Frontend redirects to backend: `GET {API_URL}/api/v1/instagram/oauth/authorize?redirect=/settings`
+3. Backend redirects to Facebook OAuth dialog
+4. After authorization, backend redirects to: `https://app.inboop.com/settings?success=true&token=xxx`
+5. Frontend detects `success` and `token` params, shows toast, updates connection state
+
+### Key Files
+- `app/(app)/settings/page.tsx` - Settings page with Integrations tab
+- `stores/useAuthStore.ts` - Contains `instagramConnection` state
+- `stores/useToastStore.ts` - Toast notification system
+- `components/ui/toast.tsx` - Toast UI component
+
+### State Management
+```tsx
+// useAuthStore.ts
+instagramConnection: {
+  isConnected: boolean;
+  username?: string;
+  lastSync?: Date;
+}
+setInstagramConnection: (connection) => void;
+```
+
+### Toast Notifications
+```tsx
+import { toast } from '@/stores/useToastStore';
+
+toast.success('Title', 'Description');
+toast.error('Title', 'Description');
+toast.info('Title', 'Description');
+toast.warning('Title', 'Description');
+```
+
+### Settings Page Structure
+The Settings page uses a tabbed layout with left sidebar:
+- **Profile** - User info, avatar, name, email, phone
+- **Workspace** - Brand name, timezone, business category
+- **Notifications** - Toggle switches for notification preferences
+- **Integrations** - Instagram, WhatsApp, Facebook connection cards
+- **Billing** - Plan info, payment method
+
+### Design Colors (Settings Page)
+Only uses 3 colors as per design spec:
+- Black: `#111` (text)
+- White: `#FFFFFF` (cards, backgrounds)
+- Dark Green: `#2F5D3E` (buttons, accents, active states)
+- Light Gray: `#F8F9FA` (page background)
+
+### Team Page
+Team management has been moved from Settings to a dedicated `/team` route in the main sidebar.
