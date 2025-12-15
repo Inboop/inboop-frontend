@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { Twitter, Linkedin, Instagram as InstagramIcon, Facebook as FacebookIcon } from 'lucide-react';
 
 export function Footer() {
@@ -64,12 +65,12 @@ export function Footer() {
               © 2025 Inboop. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-sm">
-              <a href="#" className="text-gray-600 hover:text-gray-900 transition-colors">
+              <Link href="/privacy-policy" className="text-gray-600 hover:text-gray-900 transition-colors">
                 Privacy Policy
-              </a>
-              <a href="#" className="text-gray-600 hover:text-gray-900 transition-colors">
+              </Link>
+              <Link href="/terms-of-service" className="text-gray-600 hover:text-gray-900 transition-colors">
                 Terms of Service
-              </a>
+              </Link>
               <a href="#" className="text-gray-600 hover:text-gray-900 transition-colors">
                 Cookie Policy
               </a>
