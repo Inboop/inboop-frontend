@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Inbox, Users, ShoppingBag, BarChart3, Settings } from 'lucide-react';
+import { Home, Inbox, Users, ShoppingBag, BarChart3, Settings, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { mockConversations, mockOrders } from '@/lib/mockData';
 
@@ -20,6 +20,7 @@ const navItems = [
   { name: 'Leads', href: '/leads', icon: Users },
   { name: 'Orders', href: '/orders', icon: ShoppingBag },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Team', href: '/team', icon: UserPlus },
 ];
 
 const getInitials = (name?: string) => {

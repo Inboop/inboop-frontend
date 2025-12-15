@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { GlobalHeader } from "@/components/GlobalHeader";
 import { Sidebar } from "@/components/Sidebar";
+import { ToastContainer } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/AuthContext';
 
 const MARKETING_URL = process.env.NEXT_PUBLIC_MARKETING_URL || 'https://inboop.com';
@@ -48,6 +49,7 @@ export default function AppLayout({
           {children}
         </main>
       </div>
+      <ToastContainer />
     </div>
   );
 }
