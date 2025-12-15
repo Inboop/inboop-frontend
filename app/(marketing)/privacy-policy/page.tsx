@@ -1,5 +1,6 @@
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
+import Link from 'next/link';
 
 export const metadata = {
   title: 'Privacy Policy - Inboop',
@@ -14,11 +15,80 @@ export default function PrivacyPolicyPage() {
       <main className="py-16 px-6">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Privacy Policy</h1>
-          <p className="text-gray-600 mb-12">Last updated: December 15, 2025</p>
+
+          {/* Update Notice */}
+          <div className="flex items-center gap-2 mb-8 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm text-green-800">
+              We update this policy regularly to keep you informed. <strong>Last updated: December 15, 2025</strong>
+            </p>
+          </div>
+
+          {/* Quick Summary Box */}
+          <div className="mb-10 p-6 bg-gray-50 border border-gray-200 rounded-xl">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Privacy at a Glance</h2>
+            <div className="grid md:grid-cols-2 gap-4 text-sm">
+              <div className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span className="text-gray-600">We never sell your personal data</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span className="text-gray-600">You can delete your data anytime</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span className="text-gray-600">Data encrypted in transit and at rest</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span className="text-gray-600">GDPR and CCPA compliant</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span className="text-gray-600">30-day response to privacy requests</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span className="text-gray-600">Clear data retention timelines</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Table of Contents */}
+          <div className="mb-10 p-6 bg-white border border-gray-200 rounded-xl">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Table of Contents</h2>
+            <nav className="grid md:grid-cols-2 gap-2 text-sm">
+              <Link href="#introduction" className="text-gray-600 hover:text-green-700 transition-colors">1. Introduction</Link>
+              <Link href="#information-collected" className="text-gray-600 hover:text-green-700 transition-colors">2. Information We Collect</Link>
+              <Link href="#legal-basis" className="text-gray-600 hover:text-green-700 transition-colors">3. Legal Basis for Processing</Link>
+              <Link href="#how-we-use" className="text-gray-600 hover:text-green-700 transition-colors">4. How We Use Your Information</Link>
+              <Link href="#cookies" className="text-gray-600 hover:text-green-700 transition-colors">5. Cookies & Tracking</Link>
+              <Link href="#data-sharing" className="text-gray-600 hover:text-green-700 transition-colors">6. Data Sharing & Disclosure</Link>
+              <Link href="#international-transfers" className="text-gray-600 hover:text-green-700 transition-colors">7. International Data Transfers</Link>
+              <Link href="#data-security" className="text-gray-600 hover:text-green-700 transition-colors">8. Data Security</Link>
+              <Link href="#data-retention" className="text-gray-600 hover:text-green-700 transition-colors">9. Data Retention</Link>
+              <Link href="#your-rights" className="text-gray-600 hover:text-green-700 transition-colors">10. Your Rights</Link>
+              <Link href="#third-party" className="text-gray-600 hover:text-green-700 transition-colors">11. Third-Party Services</Link>
+              <Link href="#children" className="text-gray-600 hover:text-green-700 transition-colors">12. Children&apos;s Privacy</Link>
+              <Link href="#changes" className="text-gray-600 hover:text-green-700 transition-colors">13. Changes to This Policy</Link>
+              <Link href="#contact" className="text-gray-600 hover:text-green-700 transition-colors">14. Contact Us</Link>
+            </nav>
+          </div>
 
           <div className="prose prose-gray max-w-none">
-            <section className="mb-10">
+            {/* Section 1 */}
+            <section id="introduction" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Introduction</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• This policy explains how we handle your data</li>
+                  <li>• By using Inboop, you agree to this policy</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed mb-4">
                 Welcome to Inboop (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). We are committed to protecting your privacy and ensuring
                 the security of your personal information. This Privacy Policy explains how we collect, use, disclose,
@@ -30,8 +100,17 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-            <section className="mb-10">
+            {/* Section 2 */}
+            <section id="information-collected" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Information We Collect</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• Personal info you provide (name, email, business details)</li>
+                  <li>• Social media data when you connect accounts</li>
+                  <li>• Automatic data (device info, usage patterns)</li>
+                </ul>
+              </div>
 
               <h3 className="text-xl font-medium text-gray-800 mb-3">2.1 Personal Information</h3>
               <p className="text-gray-600 leading-relaxed mb-4">
@@ -67,8 +146,17 @@ export default function PrivacyPolicyPage() {
               </ul>
             </section>
 
-            <section className="mb-10">
+            {/* Section 3 */}
+            <section id="legal-basis" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. Legal Basis for Processing</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• We process data to provide our service (contract)</li>
+                  <li>• We ask consent where required by law</li>
+                  <li>• You can withdraw consent anytime</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed mb-4">
                 We process your personal data under the following legal bases as required by GDPR and other applicable laws:
               </p>
@@ -83,8 +171,17 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-            <section className="mb-10">
+            {/* Section 4 */}
+            <section id="how-we-use" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. How We Use Your Information</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• Provide and improve our CRM service</li>
+                  <li>• AI-powered message classification</li>
+                  <li>• Security and fraud prevention</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed mb-4">
                 We use the collected information for various purposes:
               </p>
@@ -99,8 +196,17 @@ export default function PrivacyPolicyPage() {
               </ul>
             </section>
 
-            <section className="mb-10">
+            {/* Section 5 */}
+            <section id="cookies" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. Cookies and Tracking Technologies</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• Essential cookies required for functionality</li>
+                  <li>• Google Analytics for usage insights</li>
+                  <li>• You can opt-out via browser settings</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed mb-4">
                 We use cookies and similar tracking technologies to enhance your experience. Here&apos;s what we use:
               </p>
@@ -132,8 +238,17 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-            <section className="mb-10">
+            {/* Section 6 */}
+            <section id="data-sharing" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">6. Data Sharing and Disclosure</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• We never sell your personal data</li>
+                  <li>• Shared only with essential service providers</li>
+                  <li>• Legal disclosure only when required</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed mb-4">
                 We do not sell your personal information. We may share your data in the following circumstances:
               </p>
@@ -145,8 +260,17 @@ export default function PrivacyPolicyPage() {
               </ul>
             </section>
 
-            <section className="mb-10">
+            {/* Section 7 */}
+            <section id="international-transfers" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">7. International Data Transfers</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• Data hosted on AWS (United States)</li>
+                  <li>• Protected by Standard Contractual Clauses</li>
+                  <li>• Encrypted in transit and at rest</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed mb-4">
                 Your data may be transferred to and processed in countries other than your own. Specifically:
               </p>
@@ -164,8 +288,17 @@ export default function PrivacyPolicyPage() {
               </ul>
             </section>
 
-            <section className="mb-10">
+            {/* Section 8 */}
+            <section id="data-security" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Data Security</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• Industry-standard encryption</li>
+                  <li>• Regular security assessments</li>
+                  <li>• Secure server infrastructure</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed">
                 We implement appropriate technical and organizational security measures to protect your personal
                 information against unauthorized access, alteration, disclosure, or destruction. This includes
@@ -174,8 +307,17 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-            <section className="mb-10">
+            {/* Section 9 */}
+            <section id="data-retention" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">9. Data Retention</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• Clear retention periods for each data type</li>
+                  <li>• Data deleted or anonymized after expiry</li>
+                  <li>• Request early deletion anytime</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed mb-4">
                 We retain your data for specific periods based on the type of information and purpose:
               </p>
@@ -220,8 +362,17 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-            <section className="mb-10">
+            {/* Section 10 */}
+            <section id="your-rights" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">10. Your Rights</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• Access, correct, or delete your data</li>
+                  <li>• Export your data in portable format</li>
+                  <li>• We respond within 30 days</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed mb-4">
                 Depending on your location (including under GDPR, CCPA, and other privacy laws), you have the following rights:
               </p>
@@ -248,8 +399,16 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-            <section className="mb-10">
+            {/* Section 11 */}
+            <section id="third-party" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">11. Third-Party Services</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• We integrate with Meta (Instagram, Facebook, WhatsApp)</li>
+                  <li>• Third-party policies apply to their services</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed">
                 Our service integrates with third-party platforms including Meta (Instagram, Facebook, WhatsApp).
                 Your use of these platforms is governed by their respective privacy policies. We encourage you to
@@ -257,8 +416,16 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-            <section className="mb-10">
+            {/* Section 12 */}
+            <section id="children" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">12. Children&apos;s Privacy</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• Service not intended for users under 18</li>
+                  <li>• We delete data if collected from minors</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed">
                 Inboop is not intended for use by individuals under the age of 18. We do not knowingly collect
                 personal information from children. If we become aware that we have collected personal data from
@@ -266,8 +433,16 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-            <section className="mb-10">
+            {/* Section 13 */}
+            <section id="changes" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">13. Changes to This Policy</h2>
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg mb-4">
+                <p className="text-sm text-blue-800 font-medium">Key Points:</p>
+                <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                  <li>• We&apos;ll notify you of material changes via email</li>
+                  <li>• Check the &quot;Last updated&quot; date for recent changes</li>
+                </ul>
+              </div>
               <p className="text-gray-600 leading-relaxed">
                 We may update this Privacy Policy from time to time. We will notify you of any changes by posting
                 the new Privacy Policy on this page and updating the &quot;Last updated&quot; date. For material changes,
@@ -276,20 +451,40 @@ export default function PrivacyPolicyPage() {
               </p>
             </section>
 
-            <section className="mb-10">
+            {/* Section 14 */}
+            <section id="contact" className="mb-10 scroll-mt-24">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">14. Contact Us</h2>
               <p className="text-gray-600 leading-relaxed">
                 If you have any questions about this Privacy Policy, want to exercise your rights, or have concerns about our data practices, please contact us at:
               </p>
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <div className="mt-4 p-6 bg-gray-50 rounded-xl border border-gray-200">
                 <p className="text-gray-700">
-                  <strong>Inboop - Data Protection</strong><br />
-                  Email: privacy@inboop.com<br />
-                  Website: https://inboop.com<br /><br />
-                  <strong>Response Time:</strong> We aim to respond to all privacy-related inquiries within 30 days.
+                  <strong className="text-gray-900">Inboop - Data Protection</strong><br /><br />
+                  <span className="flex items-center gap-2 mb-2">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    privacy@inboop.com
+                  </span>
+                  <span className="flex items-center gap-2 mb-4">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                    </svg>
+                    https://inboop.com
+                  </span>
+                  <span className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                    Response Time: Within 30 days
+                  </span>
                 </p>
               </div>
             </section>
+          </div>
+
+          {/* Back to Top */}
+          <div className="mt-8 pt-8 border-t border-gray-200 text-center">
+            <Link href="#" className="text-sm text-gray-500 hover:text-green-700 transition-colors">
+              ↑ Back to top
+            </Link>
           </div>
         </div>
       </main>
