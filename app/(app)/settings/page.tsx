@@ -123,40 +123,88 @@ export default function SettingsPage() {
 
   // Handle OAuth callback
   useEffect(() => {
-    const success = searchParams.get('success');
-    const error = searchParams.get('error');
-    const token = searchParams.get('token');
+    const instagramConnected = searchParams.get('instagram_connected');
+    const instagramError = searchParams.get('instagram_error');
 
-    if (success === 'true' && token) {
-      handleOAuthSuccess(token);
-      router.replace('/settings', { scroll: false });
-    } else if (error) {
-      toast.error('Connection Failed', decodeURIComponent(error));
-      router.replace('/settings', { scroll: false });
+    if (instagramConnected === 'true') {
+      handleOAuthSuccess();
+      router.replace('/settings?tab=integrations', { scroll: false });
+    } else if (instagramError) {
+      toast.error('Connection Failed', decodeURIComponent(instagramError));
+      router.replace('/settings?tab=integrations', { scroll: false });
       setActiveTab('integrations');
+      setIsConnectingInstagram(false);
     }
   }, [searchParams, router]);
 
-  const handleOAuthSuccess = async (accessToken: string) => {
-    setInstagramConnection({
-      isConnected: true,
-      username: 'your_business',
-      lastSync: new Date(),
-    });
+  const handleOAuthSuccess = async () => {
+    // Fetch connection status from backend to get actual username
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`${API_URL}/api/v1/integrations/instagram/status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+
+      if (data.connected) {
+        setInstagramConnection({
+          isConnected: true,
+          username: data.instagramUsername || data.businessName || 'your_business',
+          lastSync: new Date(),
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch Instagram status:', error);
+      setInstagramConnection({
+        isConnected: true,
+        username: 'your_business',
+        lastSync: new Date(),
+      });
+    }
     toast.success('Instagram Connected', 'Your Instagram Business account has been successfully connected.');
     setActiveTab('integrations');
     setIsConnectingInstagram(false);
   };
 
-  const handleConnectInstagram = () => {
+  const handleConnectInstagram = async () => {
     setIsConnectingInstagram(true);
-    const redirectPath = encodeURIComponent('/settings');
-    window.location.href = `${API_URL}/api/v1/instagram/oauth/authorize?redirect=${redirectPath}`;
+    try {
+      const token = localStorage.getItem('accessToken');
+
+      // Step 1: Get connection token from backend
+      const response = await fetch(`${API_URL}/api/v1/integrations/instagram/connect`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to initialize connection');
+      }
+
+      const data = await response.json();
+
+      // Step 2: Redirect to OAuth start endpoint
+      window.location.href = `${API_URL}${data.redirectUrl}`;
+    } catch (error) {
+      console.error('Failed to connect Instagram:', error);
+      toast.error('Connection Failed', 'Failed to initialize Instagram connection.');
+      setIsConnectingInstagram(false);
+    }
   };
 
-  const handleDisconnectInstagram = () => {
-    setInstagramConnection({ isConnected: false });
-    toast.success('Disconnected', 'Instagram account has been disconnected.');
+  const handleDisconnectInstagram = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      await fetch(`${API_URL}/api/v1/integrations/instagram/disconnect`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setInstagramConnection({ isConnected: false });
+      toast.success('Disconnected', 'Instagram account has been disconnected.');
+    } catch (error) {
+      console.error('Failed to disconnect:', error);
+      toast.error('Error', 'Failed to disconnect Instagram account.');
+    }
   };
 
   const handleSaveProfile = async () => {
