@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -32,6 +32,10 @@ export default function AuthCallbackPage() {
     }
   }, [searchParams, router]);
 
+  return null;
+}
+
+function LoadingUI() {
   return (
     <div className="min-h-screen bg-[#212121] flex flex-col items-center justify-center">
       {/* Logo */}
@@ -61,5 +65,16 @@ export default function AuthCallbackPage() {
         <div className="w-2 h-2 rounded-full bg-[#2F5D3E] animate-bounce" style={{ animationDelay: '300ms' }} />
       </div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <>
+      <LoadingUI />
+      <Suspense fallback={null}>
+        <AuthCallbackContent />
+      </Suspense>
+    </>
   );
 }
