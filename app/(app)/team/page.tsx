@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Trash2, Mail, Shield, Eye, Edit3 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Trash2, Mail, Shield, Eye, Edit3, Users } from 'lucide-react';
 import { toast } from '@/stores/useToastStore';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { isAdminUser } from '@/lib/isAdmin';
+import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
 
 interface TeamMember {
   id: string;
@@ -20,15 +23,29 @@ const roleIcons = {
   Viewer: Eye,
 };
 
+const mockTeamMembers: TeamMember[] = [
+  { id: '1', name: 'Sarah Wilson', email: 'sarah@example.com', role: 'Admin', initials: 'SW', joinedAt: new Date('2024-10-15') },
+  { id: '2', name: 'Mike Chen', email: 'mike@example.com', role: 'Editor', initials: 'MC', joinedAt: new Date('2024-11-02') },
+  { id: '3', name: 'Emma Davis', email: 'emma@example.com', role: 'Viewer', initials: 'ED', joinedAt: new Date('2024-12-01') },
+];
+
 export default function TeamPage() {
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    { id: '1', name: 'Sarah Wilson', email: 'sarah@example.com', role: 'Admin', initials: 'SW', joinedAt: new Date('2024-10-15') },
-    { id: '2', name: 'Mike Chen', email: 'mike@example.com', role: 'Editor', initials: 'MC', joinedAt: new Date('2024-11-02') },
-    { id: '3', name: 'Emma Davis', email: 'emma@example.com', role: 'Viewer', initials: 'ED', joinedAt: new Date('2024-12-01') },
-  ]);
+  const { user } = useAuth();
+  const isAdmin = isAdminUser(user?.email);
+  const [isLoading, setIsLoading] = useState(true);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'Admin' | 'Editor' | 'Viewer'>('Viewer');
   const [showInviteForm, setShowInviteForm] = useState(false);
+
+  // Fetch team members on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTeamMembers(isAdmin ? mockTeamMembers : []);
+      setIsLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [isAdmin]);
 
   const handleInviteMember = () => {
     if (!inviteEmail) return;
@@ -121,20 +138,30 @@ export default function TeamPage() {
 
         {/* Team Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div style={{ fontSize: '28px', fontWeight: 700, color: '#111' }}>{teamMembers.length}</div>
-            <div style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>Total Members</div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div style={{ fontSize: '28px', fontWeight: 700, color: '#111' }}>
-              {teamMembers.filter(m => m.role === 'Admin').length}
-            </div>
-            <div style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>Admins</div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div style={{ fontSize: '28px', fontWeight: 700, color: '#111' }}>5</div>
-            <div style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>Seats Available</div>
-          </div>
+          {isLoading ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : (
+            <>
+              <div className="bg-white border border-gray-200 rounded-xl p-5">
+                <div style={{ fontSize: '28px', fontWeight: 700, color: '#111' }}>{teamMembers.length}</div>
+                <div style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>Total Members</div>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-xl p-5">
+                <div style={{ fontSize: '28px', fontWeight: 700, color: '#111' }}>
+                  {teamMembers.filter(m => m.role === 'Admin').length}
+                </div>
+                <div style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>Admins</div>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-xl p-5">
+                <div style={{ fontSize: '28px', fontWeight: 700, color: '#111' }}>5</div>
+                <div style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>Seats Available</div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Team Members List */}
@@ -142,48 +169,83 @@ export default function TeamPage() {
           <div className="px-6 py-4 border-b border-gray-100">
             <div style={{ fontSize: '16px', fontWeight: 600, color: '#111' }}>Team Members</div>
           </div>
-          <div className="divide-y divide-gray-100">
-            {teamMembers.map((member) => {
-              const RoleIcon = roleIcons[member.role];
-              return (
-                <div key={member.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-[#2F5D3E] flex items-center justify-center">
-                      <span style={{ fontSize: '16px', fontWeight: 500, color: 'white' }}>{member.initials}</span>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '15px', fontWeight: 500, color: '#111' }}>{member.name}</div>
-                      <div style={{ fontSize: '13px', color: '#6B7280' }}>{member.email}</div>
-                    </div>
+          {isLoading ? (
+            <div className="p-6 space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="w-12 h-12 rounded-full" />
+                  <div className="flex-1">
+                    <Skeleton className="w-32 h-4 mb-2" />
+                    <Skeleton className="w-48 h-3" />
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div style={{ fontSize: '12px', color: '#9CA3AF' }}>
-                      Joined {member.joinedAt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                    </div>
-                    <select
-                      value={member.role}
-                      onChange={(e) => handleRoleChange(member.id, e.target.value as 'Admin' | 'Editor' | 'Viewer')}
-                      className={cn(
-                        'px-3 py-1.5 rounded-lg border-0 appearance-none cursor-pointer',
-                        member.role === 'Admin' ? 'bg-[#2F5D3E]/10 text-[#2F5D3E]' : 'bg-gray-100 text-gray-600'
-                      )}
-                      style={{ fontSize: '13px', fontWeight: 500 }}
-                    >
-                      <option value="Viewer">Viewer</option>
-                      <option value="Editor">Editor</option>
-                      <option value="Admin">Admin</option>
-                    </select>
-                    <button
-                      onClick={() => handleRemoveMember(member.id, member.name)}
-                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
-                    </button>
-                  </div>
+                  <Skeleton className="w-20 h-8 rounded-lg" />
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : teamMembers.length === 0 ? (
+            <div className="py-16 text-center px-4">
+              <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[#2F5D3E]/10 to-[#2F5D3E]/5 flex items-center justify-center">
+                <Users className="w-10 h-10 text-[#2F5D3E]" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No team members yet</h3>
+              <p className="text-sm text-gray-500 max-w-sm mx-auto mb-6">
+                Invite team members to collaborate on managing your inbox, leads, and orders.
+              </p>
+              <button
+                onClick={() => setShowInviteForm(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium transition-all duration-150 ease-out shadow-md hover:shadow-lg hover:brightness-110"
+                style={{
+                  background: 'linear-gradient(180deg, #2F5D3E 0%, #285239 100%)',
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                Invite Member
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {teamMembers.map((member) => {
+                const RoleIcon = roleIcons[member.role];
+                return (
+                  <div key={member.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-[#2F5D3E] flex items-center justify-center">
+                        <span style={{ fontSize: '16px', fontWeight: 500, color: 'white' }}>{member.initials}</span>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '15px', fontWeight: 500, color: '#111' }}>{member.name}</div>
+                        <div style={{ fontSize: '13px', color: '#6B7280' }}>{member.email}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div style={{ fontSize: '12px', color: '#9CA3AF' }}>
+                        Joined {member.joinedAt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </div>
+                      <select
+                        value={member.role}
+                        onChange={(e) => handleRoleChange(member.id, e.target.value as 'Admin' | 'Editor' | 'Viewer')}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg border-0 appearance-none cursor-pointer',
+                          member.role === 'Admin' ? 'bg-[#2F5D3E]/10 text-[#2F5D3E]' : 'bg-gray-100 text-gray-600'
+                        )}
+                        style={{ fontSize: '13px', fontWeight: 500 }}
+                      >
+                        <option value="Viewer">Viewer</option>
+                        <option value="Editor">Editor</option>
+                        <option value="Admin">Admin</option>
+                      </select>
+                      <button
+                        onClick={() => handleRemoveMember(member.id, member.name)}
+                        className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Roles Info */}

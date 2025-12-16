@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/AuthContext';
+import { isAdminUser } from '@/lib/isAdmin';
+import { mockOrders as mockOrdersData } from '@/lib/mockData';
 
 type OrderStatus = 'Pending' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled';
 
@@ -32,6 +35,21 @@ interface Order {
 }
 
 const statusFilters: OrderStatus[] = ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
+
+// Transform mockOrders to match our interface
+const transformMockOrders = (): Order[] => {
+  return mockOrdersData.map((o, index) => ({
+    id: o.id,
+    orderNumber: `ORD-${String(index + 1001).padStart(4, '0')}`,
+    customerName: o.customerHandle.replace('@', ''),
+    customerHandle: o.customerHandle,
+    status: o.status as OrderStatus,
+    totalAmount: o.amount,
+    items: o.items?.split(',').length || 1,
+    createdAt: o.createdAt,
+    updatedAt: o.createdAt,
+  }));
+};
 
 const getOrderStatusColor = (status: OrderStatus) => {
   switch (status) {
@@ -54,17 +72,22 @@ const getOrderStatusDot = (status: OrderStatus) => {
 };
 
 export default function OrdersPage() {
-  const [orders] = useState<Order[]>([]);
+  const { user } = useAuth();
+  const isAdmin = isAdminUser(user?.email);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  // Simulate loading
+  // Fetch orders on mount
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
+    const timer = setTimeout(() => {
+      setOrders(isAdmin ? transformMockOrders() : []);
+      setIsLoading(false);
+    }, 500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isAdmin]);
 
   // Calculate metrics
   const metrics = useMemo(() => {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Lead } from '@/types';
+import { mockLeads } from '@/lib/mockData';
 
 interface LeadState {
   leads: Lead[];
@@ -9,7 +10,7 @@ interface LeadState {
   addLead: (lead: Lead) => void;
   updateLead: (id: string, updates: Partial<Lead>) => void;
   getLead: (id: string) => Lead | undefined;
-  fetchLeads: () => Promise<void>;
+  fetchLeads: (isAdmin?: boolean) => Promise<void>;
 }
 
 export const useLeadStore = create<LeadState>((set, get) => ({
@@ -31,12 +32,11 @@ export const useLeadStore = create<LeadState>((set, get) => ({
       ),
     })),
   getLead: (id) => get().leads.find((lead) => lead.id === id),
-  fetchLeads: async () => {
+  fetchLeads: async (isAdmin = false) => {
     set({ isLoading: true });
     // TODO: Replace with actual API call
-    // const response = await fetch('/api/leads');
-    // const data = await response.json();
     await new Promise((resolve) => setTimeout(resolve, 500));
-    set({ leads: [], isLoading: false });
+    // Show mock data only for admin user
+    set({ leads: isAdmin ? mockLeads : [], isLoading: false });
   },
 }));

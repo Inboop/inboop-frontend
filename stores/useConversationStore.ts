@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Conversation, ConversationStatus } from '@/types';
+import { mockConversations } from '@/lib/mockData';
 
 interface ConversationState {
   conversations: Conversation[];
@@ -8,7 +9,7 @@ interface ConversationState {
   setConversationStatus: (id: string, status: ConversationStatus) => void;
   updateConversation: (id: string, updates: Partial<Conversation>) => void;
   getConversation: (id: string) => Conversation | undefined;
-  fetchConversations: () => Promise<void>;
+  fetchConversations: (isAdmin?: boolean) => Promise<void>;
 }
 
 export const useConversationStore = create<ConversationState>((set, get) => ({
@@ -33,12 +34,11 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       ),
     })),
   getConversation: (id) => get().conversations.find((c) => c.id === id),
-  fetchConversations: async () => {
+  fetchConversations: async (isAdmin = false) => {
     set({ isLoading: true });
     // TODO: Replace with actual API call
-    // const response = await fetch('/api/conversations');
-    // const data = await response.json();
     await new Promise((resolve) => setTimeout(resolve, 500));
-    set({ conversations: [], isLoading: false });
+    // Show mock data only for admin user
+    set({ conversations: isAdmin ? mockConversations : [], isLoading: false });
   },
 }));

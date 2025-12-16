@@ -15,20 +15,27 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/AuthContext';
+import { isAdminUser } from '@/lib/isAdmin';
 
 type TimeRange = '7d' | '30d' | '90d' | '12m';
 
 export default function AnalyticsPage() {
+  const { user } = useAuth();
+  const isAdmin = isAdminUser(user?.email);
   const [isLoading, setIsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
   const [showTimeDropdown, setShowTimeDropdown] = useState(false);
-  const hasData = false; // No data until Instagram is connected
+  const [hasData, setHasData] = useState(false);
 
-  // Simulate loading
+  // Fetch data on mount
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
+    const timer = setTimeout(() => {
+      setHasData(isAdmin);
+      setIsLoading(false);
+    }, 500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isAdmin]);
 
   const timeRangeLabels: Record<TimeRange, string> = {
     '7d': 'Last 7 days',
@@ -37,13 +44,20 @@ export default function AnalyticsPage() {
     '12m': 'Last 12 months',
   };
 
-  // Empty metrics for display
-  const metrics = {
-    conversations: 0,
-    leads: 0,
-    conversionRate: 0,
-    revenue: 0,
-  };
+  // Metrics - show mock data for admin, zeros for others
+  const metrics = hasData
+    ? {
+        conversations: 248,
+        leads: 156,
+        conversionRate: 24,
+        revenue: 12450,
+      }
+    : {
+        conversations: 0,
+        leads: 0,
+        conversionRate: 0,
+        revenue: 0,
+      };
 
   return (
     <div className="flex h-full flex-col bg-[#F8F9FA]">

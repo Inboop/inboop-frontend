@@ -3,6 +3,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useLeadStore } from '@/stores/useLeadStore';
+import { useAuth } from '@/contexts/AuthContext';
+import { isAdminUser } from '@/lib/isAdmin';
 import {
   Search,
   Filter,
@@ -38,16 +40,19 @@ const statusFilters: LeadStatus[] = ['New', 'Contacted', 'Qualified', 'Converted
 
 export default function LeadsPage() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const { leads, deleteLead, updateLead, isLoading, fetchLeads } = useLeadStore();
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<LeadStatus | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
+  const isAdmin = isAdminUser(user?.email);
+
   // Fetch leads on mount
   useEffect(() => {
-    fetchLeads();
-  }, [fetchLeads]);
+    fetchLeads(isAdmin);
+  }, [fetchLeads, isAdmin]);
 
   // Check for selected lead from URL query params
   useEffect(() => {

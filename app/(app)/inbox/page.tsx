@@ -8,18 +8,24 @@ import { ChatView } from '@/components/inbox/ChatView';
 import { LeadSnapshot } from '@/components/inbox/LeadSnapshot';
 import { useUIStore } from '@/stores/useUIStore';
 import { useConversationStore } from '@/stores/useConversationStore';
+import { useAuth } from '@/contexts/AuthContext';
+import { isAdminUser } from '@/lib/isAdmin';
+import { mockMessages } from '@/lib/mockData';
 import { LeadStatus } from '@/types';
 import { SkeletonConversation, SkeletonMessage, SkeletonDetailPanel, Skeleton } from '@/components/ui/skeleton';
 
 export default function InboxPage() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const { selectedConversationId, setSelectedConversationId } = useUIStore();
   const { conversations, setConversationVIP, isLoading, fetchConversations } = useConversationStore();
 
+  const isAdmin = isAdminUser(user?.email);
+
   // Fetch conversations on mount
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+    fetchConversations(isAdmin);
+  }, [fetchConversations, isAdmin]);
 
   // Check for conversation from URL query params (when coming from leads page)
   useEffect(() => {
@@ -36,8 +42,8 @@ export default function InboxPage() {
     ? conversations.find((c) => c.id === selectedConversationId) || null
     : null;
 
-  // TODO: Fetch messages from API when conversation is selected
-  const messages: never[] = [];
+  // Get messages for selected conversation (mock for admin, empty for others)
+  const messages = isAdmin && selectedConversationId ? mockMessages[selectedConversationId] || [] : [];
 
   const handleVIPChange = (isVIP: boolean) => {
     if (selectedConversationId) {
