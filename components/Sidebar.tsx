@@ -4,14 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Inbox, Target, ShoppingBag, BarChart3, Settings, Users, X } from 'lucide-react';
-import { mockConversations, mockOrders } from '@/lib/mockData';
 import { useSidebar } from '@/contexts/SidebarContext';
 
-// Calculate unread counts
+// TODO: Get unread counts from stores/API
 const getUnreadCounts = () => {
-  const inboxUnread = mockConversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
-  const ordersUnread = mockOrders.filter((o) => o.status === 'Pending').length;
-  return { Inbox: inboxUnread, Orders: ordersUnread };
+  // Return 0 for all counts until real data is available
+  return { Inbox: 0, Orders: 0 };
 };
 
 const navItems = [
