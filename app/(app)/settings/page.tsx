@@ -20,7 +20,16 @@ import {
   AlertTriangle,
   ExternalLink,
   X,
-  Clock
+  Clock,
+  ChevronRight,
+  ChevronDown,
+  RefreshCw,
+  HelpCircle,
+  Settings,
+  Link2,
+  UserPlus,
+  Key,
+  Shield
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAuth } from '@/contexts/AuthContext';
@@ -102,6 +111,120 @@ const formatRetryDate = (retryAt: string): string => {
   });
 };
 
+// Wizard diagnose content based on reason
+interface DiagnoseContent {
+  title: string;
+  description: string;
+  checklist: Array<{ label: string; checked: boolean }>;
+  primaryAction: {
+    label: string;
+    type: 'external' | 'reconnect' | 'wait';
+    url?: string;
+  };
+  helpText: string;
+}
+
+const getDiagnoseContent = (reason: IntegrationReason | undefined, retryAt?: string): DiagnoseContent => {
+  switch (reason) {
+    case 'NO_PAGES_FOUND':
+      return {
+        title: 'No Business Page Found',
+        description: 'You need a Business Page to connect Instagram.',
+        checklist: [
+          { label: 'Create a Business Page on Meta', checked: false },
+          { label: 'You are an admin of the page', checked: false },
+          { label: 'Page is published (not in draft)', checked: false },
+        ],
+        primaryAction: { label: 'Create Business Page', type: 'external', url: 'https://www.facebook.com/pages/create' },
+        helpText: 'A Business Page is required to use Instagram messaging features. You can create one for free on Meta.',
+      };
+    case 'IG_NOT_LINKED_TO_PAGE':
+      return {
+        title: 'Instagram Not Linked',
+        description: 'Your Instagram account needs to be linked to a Business Page.',
+        checklist: [
+          { label: 'Instagram account is Business or Creator type', checked: false },
+          { label: 'Instagram is linked to your Business Page', checked: false },
+          { label: 'You have admin access to the page', checked: false },
+        ],
+        primaryAction: { label: 'Open Instagram Settings', type: 'external', url: 'https://www.instagram.com/accounts/edit/' },
+        helpText: 'Go to Instagram Settings → Account → Linked Accounts to connect your Business Page.',
+      };
+    case 'IG_NOT_BUSINESS':
+      return {
+        title: 'Personal Account Detected',
+        description: 'Switch to an Instagram Business or Creator account.',
+        checklist: [
+          { label: 'Open Instagram app', checked: false },
+          { label: 'Go to Settings → Account', checked: false },
+          { label: 'Select "Switch to Professional Account"', checked: false },
+        ],
+        primaryAction: { label: 'Learn How to Switch', type: 'external', url: 'https://help.instagram.com/502981923235522' },
+        helpText: 'Professional accounts (Business or Creator) are free and unlock messaging features.',
+      };
+    case 'OWNERSHIP_MISMATCH':
+      return {
+        title: 'Permission Issue',
+        description: 'Your account permissions need to be updated.',
+        checklist: [
+          { label: 'You are an admin of the Business Page', checked: false },
+          { label: 'Instagram account is properly linked', checked: false },
+          { label: 'Business Manager access is configured', checked: false },
+        ],
+        primaryAction: { label: 'Open Business Settings', type: 'external', url: 'https://business.facebook.com/settings' },
+        helpText: 'Check your role in Business Settings. You need admin access to connect Instagram.',
+      };
+    case 'ADMIN_COOLDOWN':
+      return {
+        title: 'Waiting Period Active',
+        description: retryAt
+          ? `New admins must wait before connecting. Try again on ${formatRetryDate(retryAt)}.`
+          : 'New admins must wait up to 7 days before connecting.',
+        checklist: [
+          { label: 'You were recently added as page admin', checked: true },
+          { label: 'Wait for the cooldown period to end', checked: false },
+          { label: 'Try reconnecting after the wait', checked: false },
+        ],
+        primaryAction: { label: 'Waiting...', type: 'wait' },
+        helpText: 'This is a security measure. The waiting period helps protect your account.',
+      };
+    case 'TOKEN_EXPIRED':
+      return {
+        title: 'Connection Expired',
+        description: 'Your Instagram connection needs to be refreshed.',
+        checklist: [
+          { label: 'Previous connection has expired', checked: true },
+          { label: 'Reconnect to refresh access', checked: false },
+        ],
+        primaryAction: { label: 'Reconnect Now', type: 'reconnect' },
+        helpText: 'Connections expire periodically for security. Simply reconnect to continue.',
+      };
+    case 'MISSING_PERMISSIONS':
+      return {
+        title: 'Permissions Missing',
+        description: 'Some required permissions were not granted.',
+        checklist: [
+          { label: 'Allow messaging permissions', checked: false },
+          { label: 'Allow page access permissions', checked: false },
+          { label: 'Complete the authorization flow', checked: false },
+        ],
+        primaryAction: { label: 'Grant Permissions', type: 'reconnect' },
+        helpText: 'When reconnecting, make sure to accept all requested permissions.',
+      };
+    default:
+      return {
+        title: 'Connection Issue',
+        description: 'There was a problem connecting your Instagram account.',
+        checklist: [
+          { label: 'Check your internet connection', checked: false },
+          { label: 'Try again in a few minutes', checked: false },
+        ],
+        primaryAction: { label: 'Try Again', type: 'reconnect' },
+        helpText: 'If the problem persists, try disconnecting and reconnecting your account.',
+      };
+  }
+};
+
 const tabs: Tab[] = [
   { id: 'profile', label: 'Profile', icon: <User className="w-5 h-5" /> },
   { id: 'workspace', label: 'Workspace', icon: <Building2 className="w-5 h-5" /> },
@@ -180,7 +303,11 @@ export default function SettingsPage() {
   const [instagramStatus, setInstagramStatus] = useState<IntegrationStatusResponse | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
   const [statusError, setStatusError] = useState(false);
-  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [showFixWizard, setShowFixWizard] = useState(false);
+  const [wizardStep, setWizardStep] = useState<'diagnose' | 'verify'>('diagnose');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifySuccess, setVerifySuccess] = useState(false);
+  const [showHelpSection, setShowHelpSection] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [whatsappPhone, setWhatsappPhone] = useState('+1 555 123 4567');
   const [facebookConnected, setFacebookConnected] = useState(false);
@@ -306,6 +433,51 @@ export default function SettingsPage() {
       console.error('Failed to disconnect:', error);
       toast.error('Error', 'Failed to disconnect Instagram account.');
     }
+  };
+
+  // Wizard modal functions
+  const openFixWizard = () => {
+    setShowFixWizard(true);
+    setWizardStep('diagnose');
+    setVerifySuccess(false);
+    setShowHelpSection(false);
+  };
+
+  const closeFixWizard = () => {
+    setShowFixWizard(false);
+    setWizardStep('diagnose');
+    setVerifySuccess(false);
+    setShowHelpSection(false);
+    setIsVerifying(false);
+  };
+
+  const handleVerifyConnection = async () => {
+    setIsVerifying(true);
+    try {
+      const data = await fetchInstagramStatus();
+      if (data?.status === 'CONNECTED_READY') {
+        setVerifySuccess(true);
+        toast.success('Connected!', 'Your Instagram account is now connected.');
+        // Auto-close after success
+        setTimeout(() => {
+          closeFixWizard();
+        }, 2000);
+      } else {
+        toast.error('Not Ready Yet', 'Please complete the steps and try again.');
+      }
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleWizardPrimaryAction = (actionType: 'external' | 'reconnect' | 'wait', url?: string) => {
+    if (actionType === 'external' && url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else if (actionType === 'reconnect') {
+      closeFixWizard();
+      handleConnectInstagram();
+    }
+    // 'wait' type does nothing - button is disabled
   };
 
   const handleSaveProfile = async () => {
@@ -660,43 +832,15 @@ export default function SettingsPage() {
                         </button>
                       )}
 
-                      {/* BLOCKED with TOKEN_EXPIRED or MISSING_PERMISSIONS: Show Reconnect button */}
-                      {instagramStatus?.status === 'BLOCKED' &&
-                       (instagramStatus.reason === 'TOKEN_EXPIRED' || instagramStatus.reason === 'MISSING_PERMISSIONS') && (
+                      {/* BLOCKED: Show Fix Connection button for all blocked reasons except ADMIN_COOLDOWN */}
+                      {instagramStatus?.status === 'BLOCKED' && instagramStatus.reason !== 'ADMIN_COOLDOWN' && (
                         <button
-                          onClick={handleConnectInstagram}
-                          disabled={isConnectingInstagram}
-                          className="px-4 py-2 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors disabled:opacity-50 flex items-center gap-2"
-                          style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
-                        >
-                          {isConnectingInstagram && <Loader2 className="w-4 h-4 animate-spin" />}
-                          Reconnect
-                        </button>
-                      )}
-
-                      {/* BLOCKED with OWNERSHIP_MISMATCH: Show Business Settings button */}
-                      {instagramStatus?.status === 'BLOCKED' && instagramStatus.reason === 'OWNERSHIP_MISMATCH' && (
-                        <a
-                          href="https://business.facebook.com/settings"
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          onClick={openFixWizard}
                           className="px-4 py-2 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors flex items-center gap-2"
                           style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
                         >
-                          Open Business Settings
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
-
-                      {/* BLOCKED with IG_NOT_LINKED_TO_PAGE or NO_PAGES_FOUND: Show Setup Steps button */}
-                      {instagramStatus?.status === 'BLOCKED' &&
-                       (instagramStatus.reason === 'IG_NOT_LINKED_TO_PAGE' || instagramStatus.reason === 'NO_PAGES_FOUND') && (
-                        <button
-                          onClick={() => setShowSetupModal(true)}
-                          className="px-4 py-2 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors flex items-center gap-2"
-                          style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
-                        >
-                          Show Setup Steps
+                          Fix Connection
+                          <ChevronRight className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -726,70 +870,224 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {/* Setup Steps Modal */}
-            {showSetupModal && (
+            {/* Fix Instagram Connection Wizard Modal */}
+            {showFixWizard && (
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-xl">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111' }}>Setup Steps</h3>
+                <div className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4 shadow-xl">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center">
+                        <Instagram className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111' }}>Fix Instagram Connection</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span
+                            className={cn(
+                              'px-2 py-0.5 rounded-full text-xs font-medium',
+                              wizardStep === 'diagnose' ? 'bg-[#2F5D3E] text-white' : 'bg-gray-100 text-gray-500'
+                            )}
+                          >
+                            1. Diagnose
+                          </span>
+                          <ChevronRight className="w-3 h-3 text-gray-400" />
+                          <span
+                            className={cn(
+                              'px-2 py-0.5 rounded-full text-xs font-medium',
+                              wizardStep === 'verify' ? 'bg-[#2F5D3E] text-white' : 'bg-gray-100 text-gray-500'
+                            )}
+                          >
+                            2. Verify
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                     <button
-                      onClick={() => setShowSetupModal(false)}
-                      className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                      onClick={closeFixWizard}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                       <X className="w-5 h-5 text-gray-500" />
                     </button>
                   </div>
-                  <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '16px' }}>
-                    Complete these steps to connect your Instagram account:
-                  </p>
-                  <ol className="space-y-4">
-                    <li className="flex gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#2F5D3E] text-white flex items-center justify-center" style={{ fontSize: '12px', fontWeight: 600 }}>1</span>
+
+                  {/* Step Content */}
+                  {wizardStep === 'diagnose' && (() => {
+                    const content = getDiagnoseContent(instagramStatus?.reason, instagramStatus?.retryAt);
+                    return (
                       <div>
-                        <div style={{ fontSize: '14px', fontWeight: 500, color: '#111' }}>Create a Business Page</div>
-                        <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '2px' }}>
-                          Go to Meta and create a Business Page if you have not already.
+                        {/* Issue Title */}
+                        <div className="mb-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <AlertTriangle className="w-5 h-5 text-amber-500" />
+                            <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#111' }}>{content.title}</h4>
+                          </div>
+                          <p style={{ fontSize: '14px', color: '#6B7280' }}>{content.description}</p>
+                        </div>
+
+                        {/* Checklist */}
+                        <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                          <div style={{ fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '12px' }}>
+                            Checklist
+                          </div>
+                          <div className="space-y-3">
+                            {content.checklist.map((item, index) => (
+                              <div key={index} className="flex items-center gap-3">
+                                <div className={cn(
+                                  'w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0',
+                                  item.checked ? 'bg-[#2F5D3E]' : 'bg-white border-2 border-gray-300'
+                                )}>
+                                  {item.checked && <Check className="w-3 h-3 text-white" />}
+                                </div>
+                                <span style={{ fontSize: '14px', color: item.checked ? '#6B7280' : '#111' }}>
+                                  {item.label}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Primary Action */}
+                        <div className="flex gap-3 mb-4">
+                          {content.primaryAction.type === 'external' && (
+                            <button
+                              onClick={() => handleWizardPrimaryAction('external', content.primaryAction.url)}
+                              className="flex-1 px-4 py-3 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors flex items-center justify-center gap-2"
+                              style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
+                            >
+                              {content.primaryAction.label}
+                              <ExternalLink className="w-4 h-4" />
+                            </button>
+                          )}
+                          {content.primaryAction.type === 'reconnect' && (
+                            <button
+                              onClick={() => handleWizardPrimaryAction('reconnect')}
+                              disabled={isConnectingInstagram}
+                              className="flex-1 px-4 py-3 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                              style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
+                            >
+                              {isConnectingInstagram ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="w-4 h-4" />
+                              )}
+                              {content.primaryAction.label}
+                            </button>
+                          )}
+                          {content.primaryAction.type === 'wait' && (
+                            <button
+                              disabled
+                              className="flex-1 px-4 py-3 bg-gray-100 rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
+                              style={{ fontSize: '14px', fontWeight: 500, color: '#9CA3AF' }}
+                            >
+                              <Clock className="w-4 h-4" />
+                              {content.primaryAction.label}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setWizardStep('verify')}
+                            className="px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                            style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}
+                          >
+                            Next
+                          </button>
+                        </div>
+
+                        {/* Need Help Section */}
+                        <div className="border-t border-gray-100 pt-4">
+                          <button
+                            onClick={() => setShowHelpSection(!showHelpSection)}
+                            className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
+                            style={{ fontSize: '13px' }}
+                          >
+                            <HelpCircle className="w-4 h-4" />
+                            Need help?
+                            {showHelpSection ? (
+                              <ChevronDown className="w-4 h-4" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4" />
+                            )}
+                          </button>
+                          {showHelpSection && (
+                            <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                              <p style={{ fontSize: '13px', color: '#1E40AF' }}>
+                                {content.helpText}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#2F5D3E] text-white flex items-center justify-center" style={{ fontSize: '12px', fontWeight: 600 }}>2</span>
-                      <div>
-                        <div style={{ fontSize: '14px', fontWeight: 500, color: '#111' }}>Switch to Business Account</div>
-                        <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '2px' }}>
-                          In Instagram, go to Settings → Account → Switch to Professional Account.
+                    );
+                  })()}
+
+                  {wizardStep === 'verify' && (
+                    <div>
+                      {verifySuccess ? (
+                        /* Success State */
+                        <div className="text-center py-8">
+                          <div className="w-16 h-16 bg-[#2F5D3E]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <CheckCircle className="w-8 h-8 text-[#2F5D3E]" />
+                          </div>
+                          <h4 style={{ fontSize: '18px', fontWeight: 600, color: '#111', marginBottom: '8px' }}>
+                            Connected Successfully!
+                          </h4>
+                          <p style={{ fontSize: '14px', color: '#6B7280' }}>
+                            Your Instagram account is now ready to use.
+                          </p>
                         </div>
-                      </div>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#2F5D3E] text-white flex items-center justify-center" style={{ fontSize: '12px', fontWeight: 600 }}>3</span>
-                      <div>
-                        <div style={{ fontSize: '14px', fontWeight: 500, color: '#111' }}>Link to Your Page</div>
-                        <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '2px' }}>
-                          Connect your Instagram account to your Business Page in Instagram settings.
+                      ) : (
+                        /* Verify Step */
+                        <div>
+                          <div className="text-center py-6">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <RefreshCw className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#111', marginBottom: '8px' }}>
+                              Ready to verify?
+                            </h4>
+                            <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '24px' }}>
+                              After completing the steps above, click below to check your connection.
+                            </p>
+                            <button
+                              onClick={handleVerifyConnection}
+                              disabled={isVerifying}
+                              className="px-6 py-3 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 mx-auto"
+                              style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
+                            >
+                              {isVerifying ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Checking...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="w-4 h-4" />
+                                  Re-check Connection
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
+                            <button
+                              onClick={() => setWizardStep('diagnose')}
+                              className="flex-1 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                              style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}
+                            >
+                              Back
+                            </button>
+                            <button
+                              onClick={closeFixWizard}
+                              className="flex-1 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                              style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}
+                            >
+                              Close
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </li>
-                  </ol>
-                  <div className="mt-6 flex gap-3">
-                    <button
-                      onClick={() => setShowSetupModal(false)}
-                      className="flex-1 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                      style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}
-                    >
-                      Close
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowSetupModal(false);
-                        handleConnectInstagram();
-                      }}
-                      className="flex-1 px-4 py-3 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors"
-                      style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
-                    >
-                      Try Connecting
-                    </button>
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
