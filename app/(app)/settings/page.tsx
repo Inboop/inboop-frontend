@@ -75,6 +75,9 @@ interface IntegrationStatusResponse {
   }>;
   actions?: {
     reconnectUrl?: string;
+    businessSettingsUrl?: string;
+    businessSuiteUrl?: string;
+    pageCreateUrl?: string;
   };
 }
 
@@ -127,7 +130,23 @@ interface DiagnoseContent {
   helpText: string;
 }
 
-const getDiagnoseContent = (reason: IntegrationReason | undefined, retryAt?: string): DiagnoseContent => {
+interface ActionUrls {
+  reconnectUrl?: string;
+  businessSettingsUrl?: string;
+  businessSuiteUrl?: string;
+  pageCreateUrl?: string;
+}
+
+const getDiagnoseContent = (
+  reason: IntegrationReason | undefined,
+  retryAt?: string,
+  actions?: ActionUrls
+): DiagnoseContent => {
+  // Fallback URLs in case API doesn't provide them
+  const pageCreateUrl = actions?.pageCreateUrl || 'https://www.facebook.com/pages/create';
+  const businessSettingsUrl = actions?.businessSettingsUrl || 'https://business.facebook.com/settings';
+  const businessSuiteUrl = actions?.businessSuiteUrl || 'https://business.facebook.com/latest/home';
+
   switch (reason) {
     case 'NO_PAGES_FOUND':
       return {
@@ -138,7 +157,7 @@ const getDiagnoseContent = (reason: IntegrationReason | undefined, retryAt?: str
           { label: 'You are an admin of the page', checked: false },
           { label: 'Page is published (not in draft)', checked: false },
         ],
-        primaryAction: { label: 'Create Business Page', type: 'external', url: 'https://www.facebook.com/pages/create' },
+        primaryAction: { label: 'Create Business Page', type: 'external', url: pageCreateUrl },
         helpText: 'A Business Page is required to use Instagram messaging features. You can create one for free on Meta.',
       };
     case 'IG_NOT_LINKED_TO_PAGE':
@@ -150,8 +169,8 @@ const getDiagnoseContent = (reason: IntegrationReason | undefined, retryAt?: str
           { label: 'Instagram is linked to your Business Page', checked: false },
           { label: 'You have admin access to the page', checked: false },
         ],
-        primaryAction: { label: 'Open Instagram Settings', type: 'external', url: 'https://www.instagram.com/accounts/edit/' },
-        helpText: 'Go to Instagram Settings → Account → Linked Accounts to connect your Business Page.',
+        primaryAction: { label: 'Open Business Suite', type: 'external', url: businessSuiteUrl },
+        helpText: 'Go to Business Suite → Settings → Instagram account to connect your page.',
       };
     case 'IG_NOT_BUSINESS':
       return {
@@ -174,7 +193,7 @@ const getDiagnoseContent = (reason: IntegrationReason | undefined, retryAt?: str
           { label: 'Instagram account is properly linked', checked: false },
           { label: 'Business Manager access is configured', checked: false },
         ],
-        primaryAction: { label: 'Open Business Settings', type: 'external', url: 'https://business.facebook.com/settings' },
+        primaryAction: { label: 'Open Business Settings', type: 'external', url: businessSettingsUrl },
         helpText: 'Check your role in Business Settings. You need admin access to connect Instagram.',
       };
     case 'ADMIN_COOLDOWN':
@@ -923,7 +942,7 @@ export default function SettingsPage() {
 
                   {/* Step Content */}
                   {wizardStep === 'diagnose' && (() => {
-                    const content = getDiagnoseContent(instagramStatus?.reason, instagramStatus?.retryAt);
+                    const content = getDiagnoseContent(instagramStatus?.reason, instagramStatus?.retryAt, instagramStatus?.actions);
                     return (
                       <div>
                         {/* Issue Title */}
