@@ -7,8 +7,8 @@ export type IntentType = 'Inquiry' | 'Order' | 'Payment' | 'Delivery' | 'Issue' 
 // Lead status
 export type LeadStatus = 'New' | 'Contacted' | 'Qualified' | 'Converted' | 'Lost';
 
-// Order status
-export type OrderStatus = 'Pending' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled';
+// Order status - canonical enum values
+export type OrderStatus = 'NEW' | 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 
 // Message interface
 export interface Message {
@@ -70,6 +70,7 @@ export interface Order {
   id: string;
   customerId: string;
   customerHandle: string;
+  channel: ChannelType;
   amount: number;
   status: OrderStatus;
   createdAt: Date;

@@ -54,11 +54,12 @@ export function getLeadStatusDot(status: LeadStatus): string {
 
 export function getOrderStatusColor(status: OrderStatus): string {
   const colors: Record<OrderStatus, string> = {
-    'Pending': 'bg-amber-500 text-white',
-    'Paid': 'bg-blue-500 text-white',
-    'Shipped': 'bg-emerald-500 text-white',
-    'Delivered': 'bg-green-600 text-white',
-    'Cancelled': 'bg-rose-500 text-white',
+    'NEW': 'bg-gray-400 text-white',
+    'PENDING': 'bg-amber-500 text-white',
+    'CONFIRMED': 'bg-blue-500 text-white',
+    'SHIPPED': 'bg-purple-500 text-white',
+    'DELIVERED': 'bg-emerald-500 text-white',
+    'CANCELLED': 'bg-rose-500 text-white',
   };
   return colors[status];
 }

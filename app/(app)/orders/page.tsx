@@ -1,32 +1,42 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Search,
   Filter,
   Plus,
   Package,
   Truck,
-  CheckCircle,
   Clock,
   DollarSign,
   ChevronDown,
   ArrowUpRight,
   ShoppingBag,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminUser } from '@/lib/isAdmin';
-import { mockOrders as mockOrdersData } from '@/lib/mockData';
-
-type OrderStatus = 'Pending' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled';
+import { ChannelType } from '@/types';
+import { getChannelIcon } from '@/components/shared/ChannelIcons';
+import {
+  OrderStatus,
+  ORDER_STATUSES,
+  OrderStatusBadge,
+  getStatusDotColor,
+  getStatusLabel,
+} from '@/components/orders/OrderStatusBadge';
+import { OrderDetailsDrawer } from '@/components/orders/OrderDetailsDrawer';
+import { mockExtendedOrders, ExtendedOrder } from '@/lib/orders.mock';
 
 interface Order {
   id: string;
   orderNumber: string;
   customerName: string;
   customerHandle: string;
+  channel: ChannelType;
   status: OrderStatus;
   totalAmount: number;
   items: number;
@@ -34,51 +44,54 @@ interface Order {
   updatedAt: Date;
 }
 
-const statusFilters: OrderStatus[] = ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
-
-// Transform mockOrders to match our interface
+// Transform extended orders to match our list interface
 const transformMockOrders = (): Order[] => {
-  return mockOrdersData.map((o, index) => ({
+  return mockExtendedOrders.map((o) => ({
     id: o.id,
-    orderNumber: `ORD-${String(index + 1001).padStart(4, '0')}`,
-    customerName: o.customerHandle.replace('@', ''),
-    customerHandle: o.customerHandle,
-    status: o.status as OrderStatus,
-    totalAmount: o.amount,
-    items: o.items?.split(',').length || 1,
+    orderNumber: o.orderNumber,
+    customerName: o.customer.name,
+    customerHandle: o.customer.handle,
+    channel: o.customer.channel,
+    status: o.status,
+    totalAmount: o.totals.total,
+    items: o.items.length,
     createdAt: o.createdAt,
-    updatedAt: o.createdAt,
+    updatedAt: o.updatedAt,
   }));
-};
-
-const getOrderStatusColor = (status: OrderStatus) => {
-  switch (status) {
-    case 'Pending': return 'bg-amber-50 text-amber-700';
-    case 'Confirmed': return 'bg-blue-50 text-blue-700';
-    case 'Shipped': return 'bg-purple-50 text-purple-700';
-    case 'Delivered': return 'bg-emerald-50 text-emerald-700';
-    case 'Cancelled': return 'bg-gray-100 text-gray-600';
-  }
-};
-
-const getOrderStatusDot = (status: OrderStatus) => {
-  switch (status) {
-    case 'Pending': return 'bg-amber-500';
-    case 'Confirmed': return 'bg-blue-500';
-    case 'Shipped': return 'bg-purple-500';
-    case 'Delivered': return 'bg-emerald-500';
-    case 'Cancelled': return 'bg-gray-400';
-  }
 };
 
 export default function OrdersPage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const isAdmin = isAdminUser(user?.email);
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Drawer state - driven by URL query param
+  const selectedOrderId = searchParams.get('order');
+  const selectedOrder = useMemo(() => {
+    if (!selectedOrderId) return null;
+    return mockExtendedOrders.find(o => o.orderNumber === selectedOrderId) || null;
+  }, [selectedOrderId]);
+
+  // Open drawer by updating URL
+  const openOrder = useCallback((orderNumber: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('order', orderNumber);
+    router.push(`/orders?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
+
+  // Close drawer by removing URL param
+  const closeOrder = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('order');
+    const newUrl = params.toString() ? `/orders?${params.toString()}` : '/orders';
+    router.push(newUrl, { scroll: false });
+  }, [router, searchParams]);
 
   // Fetch orders on mount
   useEffect(() => {
@@ -92,9 +105,9 @@ export default function OrdersPage() {
   // Calculate metrics
   const metrics = useMemo(() => {
     const total = orders.length;
-    const pending = orders.filter(o => o.status === 'Pending').length;
-    const shipped = orders.filter(o => o.status === 'Shipped').length;
-    const delivered = orders.filter(o => o.status === 'Delivered').length;
+    const pending = orders.filter(o => o.status === 'NEW' || o.status === 'PENDING').length;
+    const shipped = orders.filter(o => o.status === 'SHIPPED').length;
+    const delivered = orders.filter(o => o.status === 'DELIVERED').length;
     const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
 
     return { total, pending, shipped, delivered, totalRevenue };
@@ -226,7 +239,7 @@ export default function OrdersPage() {
             >
               All
             </button>
-            {statusFilters.map((status) => (
+            {ORDER_STATUSES.map((status) => (
               <button
                 key={status}
                 onClick={() => setSelectedStatus(status)}
@@ -237,8 +250,8 @@ export default function OrdersPage() {
                     : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100 hover:text-gray-900 hover:border-gray-300'
                 )}
               >
-                <span className={cn('w-2 h-2 rounded-full', getOrderStatusDot(status))} />
-                {status}
+                <span className={cn('w-2 h-2 rounded-full', getStatusDotColor(status))} />
+                {getStatusLabel(status)}
               </button>
             ))}
 
@@ -259,12 +272,13 @@ export default function OrdersPage() {
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Table Header - Hidden on mobile */}
         <div className="hidden md:block py-2.5 bg-white border-b border-gray-200 mx-4 md:mx-8">
-          <div className="grid grid-cols-[1fr_100px_100px_120px_100px] gap-4 text-xs font-medium uppercase tracking-wider px-4">
+          <div className="grid grid-cols-[1fr_100px_100px_120px_100px_32px] gap-4 text-xs font-medium uppercase tracking-wider px-4">
             <div className="text-gray-700">Order</div>
             <div className="text-gray-700">Status</div>
             <div className="text-gray-500">Items</div>
             <div className="text-gray-500">Amount</div>
             <div className="text-gray-400">Date</div>
+            <div></div>
           </div>
         </div>
 
@@ -317,27 +331,28 @@ export default function OrdersPage() {
               {filteredOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="md:grid md:grid-cols-[1fr_100px_100px_120px_100px] gap-4 px-4 py-3 items-center cursor-pointer rounded-xl bg-white border border-gray-100 hover:shadow-md hover:-translate-y-[1px] transition-all duration-150 ease-out"
+                  onClick={() => openOrder(order.orderNumber)}
+                  className="group md:grid md:grid-cols-[1fr_100px_100px_120px_100px_32px] gap-4 px-4 py-3 items-center cursor-pointer rounded-xl bg-white border border-gray-100 hover:bg-gray-50/50 hover:shadow-md hover:border-gray-200 transition-all duration-150 ease-out"
                 >
-                  {/* Order Info */}
+                  {/* Order Info with Channel Icon */}
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                       <Package className="w-5 h-5 text-gray-500" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-gray-900 text-sm">{order.orderNumber}</p>
-                      <p className="text-xs text-gray-500 truncate">{order.customerName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-semibold text-gray-900 text-sm">{order.orderNumber}</p>
+                        <span className="flex-shrink-0">
+                          {getChannelIcon(order.channel, 14)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 truncate">{order.customerHandle}</p>
                     </div>
                   </div>
 
-                  {/* Status */}
+                  {/* Status - using OrderStatusBadge component */}
                   <div className="hidden md:block">
-                    <span className={cn(
-                      'inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold',
-                      getOrderStatusColor(order.status)
-                    )}>
-                      {order.status}
-                    </span>
+                    <OrderStatusBadge status={order.status} />
                   </div>
 
                   {/* Items */}
@@ -356,6 +371,11 @@ export default function OrdersPage() {
                       {order.createdAt.toLocaleDateString()}
                     </p>
                   </div>
+
+                  {/* Hover Arrow - Visual only */}
+                  <div className="hidden md:flex items-center justify-end">
+                    <ChevronRight className="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -372,6 +392,13 @@ export default function OrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Order Details Drawer */}
+      <OrderDetailsDrawer
+        order={selectedOrder}
+        isOpen={!!selectedOrder}
+        onClose={closeOrder}
+      />
     </div>
   );
 }
