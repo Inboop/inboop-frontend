@@ -104,3 +104,23 @@ export function getStatusDotColor(status: OrderStatus): string {
 export function getStatusLabel(status: OrderStatus): string {
   return ORDER_STATUS_CONFIG[status].label;
 }
+
+// Valid status transitions
+const STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  NEW: ['PENDING', 'CANCELLED'],
+  PENDING: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['SHIPPED', 'CANCELLED'],
+  SHIPPED: ['DELIVERED'],
+  DELIVERED: [],
+  CANCELLED: [],
+};
+
+// Helper to get allowed next statuses
+export function getAllowedNextStatuses(currentStatus: OrderStatus): OrderStatus[] {
+  return STATUS_TRANSITIONS[currentStatus] || [];
+}
+
+// Helper to check if a transition is valid
+export function isValidTransition(from: OrderStatus, to: OrderStatus): boolean {
+  return STATUS_TRANSITIONS[from]?.includes(to) || false;
+}

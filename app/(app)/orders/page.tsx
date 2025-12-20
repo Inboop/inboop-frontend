@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Search,
-  Filter,
   Plus,
   Package,
   Truck,
@@ -14,6 +13,9 @@ import {
   ArrowUpRight,
   ShoppingBag,
   ChevronRight,
+  ChevronLeft,
+  X,
+  Link2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
@@ -29,7 +31,41 @@ import {
   getStatusLabel,
 } from '@/components/orders/OrderStatusBadge';
 import { OrderDetailsDrawer } from '@/components/orders/OrderDetailsDrawer';
+import { CreateOrderDrawer } from '@/components/orders/CreateOrderDrawer';
 import { mockExtendedOrders, ExtendedOrder } from '@/lib/orders.mock';
+import { toast } from '@/stores/useToastStore';
+import { useOrderStore } from '@/stores/useOrderStore';
+
+// Sort options
+type SortOption = 'updated_desc' | 'updated_asc' | 'amount_desc' | 'amount_asc' | 'created_desc' | 'created_asc';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'updated_desc', label: 'Updated (Newest)' },
+  { value: 'updated_asc', label: 'Updated (Oldest)' },
+  { value: 'amount_desc', label: 'Amount (High to Low)' },
+  { value: 'amount_asc', label: 'Amount (Low to High)' },
+  { value: 'created_desc', label: 'Created (Newest)' },
+  { value: 'created_asc', label: 'Created (Oldest)' },
+];
+
+const PAGE_SIZE = 10;
+
+// Debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 interface Order {
   id: string;
@@ -45,18 +81,28 @@ interface Order {
 }
 
 // Transform extended orders to match our list interface
-const transformMockOrders = (): Order[] => {
+const transformToListOrder = (o: ExtendedOrder): Order => ({
+  id: o.id,
+  orderNumber: o.orderNumber,
+  customerName: o.customer.name,
+  customerHandle: o.customer.handle,
+  channel: o.customer.channel,
+  status: o.status,
+  totalAmount: o.totals.total,
+  items: o.items.length,
+  createdAt: o.createdAt,
+  updatedAt: o.updatedAt,
+});
+
+// Deep clone mock orders for state management
+const cloneMockOrders = (): ExtendedOrder[] => {
   return mockExtendedOrders.map((o) => ({
-    id: o.id,
-    orderNumber: o.orderNumber,
-    customerName: o.customer.name,
-    customerHandle: o.customer.handle,
-    channel: o.customer.channel,
-    status: o.status,
-    totalAmount: o.totals.total,
-    items: o.items.length,
-    createdAt: o.createdAt,
-    updatedAt: o.updatedAt,
+    ...o,
+    customer: { ...o.customer },
+    items: o.items.map((i) => ({ ...i })),
+    totals: { ...o.totals },
+    address: { ...o.address },
+    timeline: o.timeline.map((t) => ({ ...t })),
   }));
 };
 
@@ -65,18 +111,47 @@ export default function OrdersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isAdmin = isAdminUser(user?.email);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Use order store for shared state
+  const { orders: extendedOrders, isLoading, fetchOrders, addOrder, updateOrderStatus } = useOrderStore();
+
+  // Local UI state
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('updated_desc');
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Conversation filter from URL
+  const conversationFilter = searchParams.get('conversation');
+
+  // Debounce search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 200);
+
+  // Close sort dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setShowSortDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Derive list orders from extended orders
+  const orders = useMemo(() => {
+    return extendedOrders.map(transformToListOrder);
+  }, [extendedOrders]);
 
   // Drawer state - driven by URL query param
   const selectedOrderId = searchParams.get('order');
   const selectedOrder = useMemo(() => {
     if (!selectedOrderId) return null;
-    return mockExtendedOrders.find(o => o.orderNumber === selectedOrderId) || null;
-  }, [selectedOrderId]);
+    return extendedOrders.find(o => o.orderNumber === selectedOrderId) || null;
+  }, [selectedOrderId, extendedOrders]);
 
   // Open drawer by updating URL
   const openOrder = useCallback((orderNumber: string) => {
@@ -93,14 +168,41 @@ export default function OrdersPage() {
     router.push(newUrl, { scroll: false });
   }, [router, searchParams]);
 
+  // Clear conversation filter
+  const clearConversationFilter = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('conversation');
+    const newUrl = params.toString() ? `/orders?${params.toString()}` : '/orders';
+    router.push(newUrl, { scroll: false });
+  }, [router, searchParams]);
+
+  // Handle status update
+  const handleUpdateStatus = useCallback((orderId: string, newStatus: OrderStatus) => {
+    updateOrderStatus(orderId, newStatus, getStatusLabel(newStatus));
+    toast.success('Order status updated');
+  }, [updateOrderStatus]);
+
+  // Handle create order
+  const handleCreateOrder = useCallback((newOrder: ExtendedOrder) => {
+    addOrder(newOrder);
+    setIsCreateDrawerOpen(false);
+    toast.success('Order created');
+    // Navigate to the new order
+    openOrder(newOrder.orderNumber);
+  }, [addOrder, openOrder]);
+
+  // Get existing order numbers for ID generation
+  const existingOrderNumbers = useMemo(() => {
+    return extendedOrders.map((o) => o.orderNumber);
+  }, [extendedOrders]);
+
   // Fetch orders on mount
   useEffect(() => {
     const timer = setTimeout(() => {
-      setOrders(isAdmin ? transformMockOrders() : []);
-      setIsLoading(false);
+      fetchOrders(isAdmin ? cloneMockOrders() : []);
     }, 500);
     return () => clearTimeout(timer);
-  }, [isAdmin]);
+  }, [isAdmin, fetchOrders]);
 
   // Calculate metrics
   const metrics = useMemo(() => {
@@ -108,20 +210,82 @@ export default function OrdersPage() {
     const pending = orders.filter(o => o.status === 'NEW' || o.status === 'PENDING').length;
     const shipped = orders.filter(o => o.status === 'SHIPPED').length;
     const delivered = orders.filter(o => o.status === 'DELIVERED').length;
-    const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+    // Exclude cancelled orders from revenue
+    const totalRevenue = orders
+      .filter(o => o.status !== 'CANCELLED')
+      .reduce((sum, o) => sum + o.totalAmount, 0);
 
     return { total, pending, shipped, delivered, totalRevenue };
   }, [orders]);
 
+  // Filter orders with extended field matching
   const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
+    return extendedOrders.filter((order) => {
       const matchesStatus = !selectedStatus || order.status === selectedStatus;
-      const matchesSearch = !searchQuery ||
-        order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customerName.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesStatus && matchesSearch;
+      const matchesConversation = !conversationFilter || order.conversationId === conversationFilter;
+
+      if (!debouncedSearchQuery) return matchesStatus && matchesConversation;
+
+      const query = debouncedSearchQuery.toLowerCase();
+      const matchesSearch =
+        order.orderNumber.toLowerCase().includes(query) ||
+        order.customer.name.toLowerCase().includes(query) ||
+        order.customer.handle.toLowerCase().includes(query) ||
+        (order.customer.email?.toLowerCase().includes(query) ?? false) ||
+        (order.customer.phone?.toLowerCase().includes(query) ?? false) ||
+        order.items.some((item) => item.name.toLowerCase().includes(query));
+
+      return matchesStatus && matchesSearch && matchesConversation;
     });
-  }, [orders, selectedStatus, searchQuery]);
+  }, [extendedOrders, selectedStatus, debouncedSearchQuery, conversationFilter]);
+
+  // Sort filtered orders
+  const sortedOrders = useMemo(() => {
+    const sorted = [...filteredOrders];
+
+    sorted.sort((a, b) => {
+      switch (sortBy) {
+        case 'updated_desc':
+          return b.updatedAt.getTime() - a.updatedAt.getTime();
+        case 'updated_asc':
+          return a.updatedAt.getTime() - b.updatedAt.getTime();
+        case 'amount_desc':
+          return b.totals.total - a.totals.total;
+        case 'amount_asc':
+          return a.totals.total - b.totals.total;
+        case 'created_desc':
+          return b.createdAt.getTime() - a.createdAt.getTime();
+        case 'created_asc':
+          return a.createdAt.getTime() - b.createdAt.getTime();
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [filteredOrders, sortBy]);
+
+  // Pagination
+  const totalPages = Math.ceil(sortedOrders.length / PAGE_SIZE);
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return sortedOrders.slice(start, start + PAGE_SIZE);
+  }, [sortedOrders, currentPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedStatus, debouncedSearchQuery, sortBy]);
+
+  // Check if any filters are active
+  const hasActiveFilters = selectedStatus !== null || debouncedSearchQuery !== '';
+
+  // Clear all filters
+  const clearFilters = useCallback(() => {
+    setSelectedStatus(null);
+    setSearchQuery('');
+    setCurrentPage(1);
+  }, []);
 
   return (
     <div className="flex h-full flex-col bg-[#F8F9FA]">
@@ -133,6 +297,7 @@ export default function OrdersPage() {
             <p className="text-xs md:text-sm text-gray-500 mt-0.5">Track and manage your customer orders</p>
           </div>
           <button
+            onClick={() => setIsCreateDrawerOpen(true)}
             className="inline-flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl text-white text-sm font-medium transition-all duration-150 ease-out shadow-md hover:shadow-lg hover:brightness-110 hover:-translate-y-[1px]"
             style={{
               background: 'linear-gradient(180deg, #2F5D3E 0%, #285239 100%)',
@@ -219,11 +384,19 @@ export default function OrdersPage() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search orders..."
+              placeholder="Search orders, customers, items..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E] transition-all"
+              className="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E] transition-all"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-100 rounded transition-colors"
+              >
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            )}
           </div>
 
           {/* Status Filter Pills */}
@@ -255,17 +428,63 @@ export default function OrdersPage() {
               </button>
             ))}
 
-            {/* More Filters Button */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-3 md:px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 hover:border-gray-300 transition-all duration-150 ease-out whitespace-nowrap flex-shrink-0"
-            >
-              <Filter className="w-4 h-4" />
-              <span className="hidden sm:inline">Filters</span>
-              <ChevronDown className={cn('w-4 h-4 transition-transform duration-200', showFilters && 'rotate-180')} />
-            </button>
+            {/* Sort Dropdown */}
+            <div className="relative" ref={sortDropdownRef}>
+              <button
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                className="flex items-center gap-2 px-3 md:px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 hover:border-gray-300 transition-all duration-150 ease-out whitespace-nowrap flex-shrink-0"
+              >
+                <span className="hidden sm:inline">
+                  {SORT_OPTIONS.find((o) => o.value === sortBy)?.label || 'Sort'}
+                </span>
+                <span className="sm:hidden">Sort</span>
+                <ChevronDown
+                  className={cn(
+                    'w-4 h-4 transition-transform duration-200',
+                    showSortDropdown && 'rotate-180'
+                  )}
+                />
+              </button>
+
+              {showSortDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                  {SORT_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setSortBy(option.value);
+                        setShowSortDropdown(false);
+                      }}
+                      className={cn(
+                        'w-full px-4 py-2.5 text-sm text-left transition-colors',
+                        sortBy === option.value
+                          ? 'bg-gray-100 text-gray-900 font-medium'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Conversation Filter Banner */}
+        {conversationFilter && (
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl">
+            <Link2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
+            <span className="text-sm text-blue-700 font-medium">Filtered by conversation</span>
+            <button
+              onClick={clearConversationFilter}
+              className="ml-auto flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+            >
+              <X className="w-3 h-3" />
+              Clear
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Orders List */}
@@ -318,17 +537,26 @@ export default function OrdersPage() {
                 Connect Instagram
               </a>
             </div>
-          ) : filteredOrders.length === 0 ? (
+          ) : sortedOrders.length === 0 ? (
             <div className="py-16 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
                 <Search className="w-8 h-8 text-gray-400" />
               </div>
               <p className="text-gray-900 font-medium">No orders match your filters</p>
-              <p className="text-sm text-gray-500 mt-1">Try adjusting your search or filters</p>
+              <p className="text-sm text-gray-500 mt-1 mb-4">Try adjusting your search or filters</p>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  Clear filters
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-2 py-2">
-              {filteredOrders.map((order) => (
+              {paginatedOrders.map((order) => (
                 <div
                   key={order.id}
                   onClick={() => openOrder(order.orderNumber)}
@@ -343,10 +571,18 @@ export default function OrdersPage() {
                       <div className="flex items-center gap-1.5">
                         <p className="font-semibold text-gray-900 text-sm">{order.orderNumber}</p>
                         <span className="flex-shrink-0">
-                          {getChannelIcon(order.channel, 14)}
+                          {getChannelIcon(order.customer.channel, 14)}
                         </span>
+                        {order.conversationId && (
+                          <span
+                            className="flex-shrink-0"
+                            title="Linked to conversation"
+                          >
+                            <Link2 className="w-3.5 h-3.5 text-blue-500" />
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-gray-500 truncate">{order.customerHandle}</p>
+                      <p className="text-xs text-gray-500 truncate">{order.customer.handle}</p>
                     </div>
                   </div>
 
@@ -357,12 +593,12 @@ export default function OrdersPage() {
 
                   {/* Items */}
                   <div className="hidden md:block">
-                    <p className="text-sm text-gray-600">{order.items} items</p>
+                    <p className="text-sm text-gray-600">{order.items.length} items</p>
                   </div>
 
                   {/* Amount */}
                   <div className="hidden md:block">
-                    <p className="text-sm font-medium text-gray-900">${order.totalAmount.toLocaleString()}</p>
+                    <p className="text-sm font-medium text-gray-900">${order.totals.total.toLocaleString()}</p>
                   </div>
 
                   {/* Date */}
@@ -382,13 +618,55 @@ export default function OrdersPage() {
           )}
         </div>
 
-        {/* Table Footer */}
-        {filteredOrders.length > 0 && (
+        {/* Table Footer with Pagination */}
+        {sortedOrders.length > 0 && (
           <div className="px-4 md:px-8 py-3 bg-white border-t border-gray-200 flex items-center justify-between">
             <p className="text-sm text-gray-500">
-              Showing <span className="font-medium text-gray-900">{filteredOrders.length}</span> of{' '}
-              <span className="font-medium text-gray-900">{orders.length}</span> orders
+              Showing{' '}
+              <span className="font-medium text-gray-900">
+                {Math.min((currentPage - 1) * PAGE_SIZE + 1, sortedOrders.length)}
+              </span>
+              -
+              <span className="font-medium text-gray-900">
+                {Math.min(currentPage * PAGE_SIZE, sortedOrders.length)}
+              </span>{' '}
+              of <span className="font-medium text-gray-900">{sortedOrders.length}</span> orders
             </p>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={cn(
+                    'p-2 rounded-lg border transition-colors',
+                    currentPage === 1
+                      ? 'border-gray-100 text-gray-300 cursor-not-allowed'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  )}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <span className="text-sm text-gray-600 min-w-[80px] text-center">
+                  Page {currentPage} of {totalPages}
+                </span>
+
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className={cn(
+                    'p-2 rounded-lg border transition-colors',
+                    currentPage === totalPages
+                      ? 'border-gray-100 text-gray-300 cursor-not-allowed'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  )}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -398,6 +676,15 @@ export default function OrdersPage() {
         order={selectedOrder}
         isOpen={!!selectedOrder}
         onClose={closeOrder}
+        onUpdateStatus={handleUpdateStatus}
+      />
+
+      {/* Create Order Drawer */}
+      <CreateOrderDrawer
+        isOpen={isCreateDrawerOpen}
+        onClose={() => setIsCreateDrawerOpen(false)}
+        onCreate={handleCreateOrder}
+        existingOrderNumbers={existingOrderNumbers}
       />
     </div>
   );

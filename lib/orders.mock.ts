@@ -64,6 +64,7 @@ export interface ExtendedOrder {
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   priority?: OrderPriority;
+  conversationId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -107,6 +108,7 @@ export const mockExtendedOrders: ExtendedOrder[] = [
     carrier: 'DTDC Express',
     paymentMethod: 'UPI',
     paymentStatus: 'paid',
+    conversationId: '2', // Sarah Wilson's conversation
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48),
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 36),
   },
@@ -220,6 +222,7 @@ export const mockExtendedOrders: ExtendedOrder[] = [
     paymentMethod: 'COD',
     paymentStatus: 'cod',
     priority: 'high',
+    conversationId: '1', // John Doe's conversation
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
   },
@@ -261,6 +264,7 @@ export const mockExtendedOrders: ExtendedOrder[] = [
     paymentMethod: 'UPI',
     paymentStatus: 'paid',
     priority: 'high',
+    conversationId: '5', // Priya Sharma's conversation
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 10),
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 8),
   },

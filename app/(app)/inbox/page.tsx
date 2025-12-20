@@ -1,34 +1,65 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { MessageSquare, Instagram } from 'lucide-react';
 import ConversationList from '@/components/inbox/ConversationList';
 import { ChatView } from '@/components/inbox/ChatView';
 import { LeadSnapshot } from '@/components/inbox/LeadSnapshot';
+import { CreateOrderDrawer, CreateOrderInitialValues } from '@/components/orders/CreateOrderDrawer';
 import { useUIStore } from '@/stores/useUIStore';
 import { useConversationStore } from '@/stores/useConversationStore';
+import { useOrderStore } from '@/stores/useOrderStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminUser } from '@/lib/isAdmin';
 import { mockMessages } from '@/lib/mockData';
+import { mockExtendedOrders, ExtendedOrder } from '@/lib/orders.mock';
 import { LeadStatus } from '@/types';
 import { SkeletonConversation, SkeletonMessage, SkeletonDetailPanel, Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/stores/useToastStore';
+
+// Deep clone mock orders for state management
+const cloneMockOrders = (): ExtendedOrder[] => {
+  return mockExtendedOrders.map((o) => ({
+    ...o,
+    customer: { ...o.customer },
+    items: o.items.map((i) => ({ ...i })),
+    totals: { ...o.totals },
+    address: { ...o.address },
+    timeline: o.timeline.map((t) => ({ ...t })),
+  }));
+};
 
 export default function InboxPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { user } = useAuth();
   const { selectedConversationId, setSelectedConversationId } = useUIStore();
   const { conversations, setConversationVIP, isLoading, fetchConversations } = useConversationStore();
+  const { orders, isLoading: ordersLoading, fetchOrders, addOrder } = useOrderStore();
 
   const isAdmin = isAdminUser(user?.email);
+
+  // Create order drawer state
+  const [isCreateOrderDrawerOpen, setIsCreateOrderDrawerOpen] = useState(false);
 
   // Fetch conversations on mount
   useEffect(() => {
     fetchConversations(isAdmin);
   }, [fetchConversations, isAdmin]);
 
-  // Check for conversation from URL query params (when coming from leads page)
+  // Initialize orders store if empty
   useEffect(() => {
+    if (ordersLoading && isAdmin) {
+      fetchOrders(cloneMockOrders());
+    }
+  }, [ordersLoading, isAdmin, fetchOrders]);
+
+  // Check for conversation from URL query params (when coming from leads/orders page)
+  useEffect(() => {
+    // Only check once conversations are loaded
+    if (isLoading) return;
+
     const conversationFromUrl = searchParams.get('conversation');
     if (conversationFromUrl) {
       const conversationExists = conversations.some(c => c.id === conversationFromUrl);
@@ -36,7 +67,7 @@ export default function InboxPage() {
         setSelectedConversationId(conversationFromUrl);
       }
     }
-  }, [searchParams, conversations, setSelectedConversationId]);
+  }, [searchParams, conversations, setSelectedConversationId, isLoading]);
 
   const selectedConversation = selectedConversationId
     ? conversations.find((c) => c.id === selectedConversationId) || null
@@ -44,6 +75,24 @@ export default function InboxPage() {
 
   // Get messages for selected conversation (mock for admin, empty for others)
   const messages = isAdmin && selectedConversationId ? mockMessages[selectedConversationId] || [] : [];
+
+  // Get existing order numbers for ID generation
+  const existingOrderNumbers = useMemo(() => {
+    return orders.map((o) => o.orderNumber);
+  }, [orders]);
+
+  // Initial values for create order drawer based on selected conversation
+  const createOrderInitialValues = useMemo<CreateOrderInitialValues | undefined>(() => {
+    if (!selectedConversation) return undefined;
+    return {
+      conversationId: selectedConversation.id,
+      customer: {
+        name: selectedConversation.customerName,
+        handle: selectedConversation.customerHandle,
+      },
+      channel: selectedConversation.channel,
+    };
+  }, [selectedConversation]);
 
   const handleVIPChange = (isVIP: boolean) => {
     if (selectedConversationId) {
@@ -57,6 +106,20 @@ export default function InboxPage() {
       console.log('Lead status changed:', selectedConversationId, status);
     }
   };
+
+  // Handle create order from chat header
+  const handleCreateOrder = useCallback(() => {
+    setIsCreateOrderDrawerOpen(true);
+  }, []);
+
+  // Handle order creation
+  const handleOrderCreated = useCallback((newOrder: ExtendedOrder) => {
+    addOrder(newOrder);
+    setIsCreateOrderDrawerOpen(false);
+    toast.success('Order created');
+    // Navigate to orders page with the new order selected
+    window.location.href = `/orders?order=${newOrder.orderNumber}`;
+  }, [addOrder]);
 
   // Loading state
   if (isLoading) {
@@ -136,29 +199,41 @@ export default function InboxPage() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden">
-      <div className="w-[320px] flex-shrink-0 border-r bg-gray-50 overflow-hidden">
-        <ConversationList
-          conversations={conversations}
-          selectedId={selectedConversationId}
-          onSelect={setSelectedConversationId}
-        />
+    <>
+      <div className="flex h-full overflow-hidden">
+        <div className="w-[320px] flex-shrink-0 border-r bg-gray-50 overflow-hidden">
+          <ConversationList
+            conversations={conversations}
+            selectedId={selectedConversationId}
+            onSelect={setSelectedConversationId}
+          />
+        </div>
+
+        <div className="flex-1 min-w-0 bg-background">
+          <ChatView
+            messages={messages}
+            conversation={selectedConversation}
+            onCreateOrder={selectedConversation ? handleCreateOrder : undefined}
+          />
+        </div>
+
+        <div className="w-[320px] flex-shrink-0 border-l bg-white overflow-hidden">
+          <LeadSnapshot
+            conversation={selectedConversation}
+            onVIPChange={handleVIPChange}
+            onStatusChange={handleStatusChange}
+          />
+        </div>
       </div>
 
-      <div className="flex-1 min-w-0 bg-background">
-        <ChatView
-          messages={messages}
-          conversation={selectedConversation}
-        />
-      </div>
-
-      <div className="w-[320px] flex-shrink-0 border-l bg-white overflow-hidden">
-        <LeadSnapshot
-          conversation={selectedConversation}
-          onVIPChange={handleVIPChange}
-          onStatusChange={handleStatusChange}
-        />
-      </div>
-    </div>
+      {/* Create Order Drawer */}
+      <CreateOrderDrawer
+        isOpen={isCreateOrderDrawerOpen}
+        onClose={() => setIsCreateOrderDrawerOpen(false)}
+        onCreate={handleOrderCreated}
+        existingOrderNumbers={existingOrderNumbers}
+        initialValues={createOrderInitialValues}
+      />
+    </>
   );
 }

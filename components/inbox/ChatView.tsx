@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatMessageTime } from '@/lib/helpers';
-import { Send, Loader2, Instagram, MessageCircle, Facebook, Smile, Paperclip, MessageSquare, CheckCheck } from 'lucide-react';
+import { Send, Loader2, Instagram, MessageCircle, Facebook, Smile, Paperclip, MessageSquare, CheckCheck, Plus } from 'lucide-react';
+import { useOrderStore } from '@/stores/useOrderStore';
 
 interface ChatViewProps {
   messages: Message[];
   conversation: Conversation | null;
+  onCreateOrder?: () => void;
 }
 
 // Instagram gradient icon
@@ -142,9 +144,10 @@ const getInitials = (name?: string) => {
     .slice(0, 2);
 };
 
-export function ChatView({ messages, conversation }: ChatViewProps) {
+export function ChatView({ messages, conversation, onCreateOrder }: ChatViewProps) {
   const [messageText, setMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const { getOrdersByConversationId } = useOrderStore();
 
   const handleSend = async () => {
     if (!messageText.trim() || !conversation) return;
@@ -175,7 +178,9 @@ export function ChatView({ messages, conversation }: ChatViewProps) {
 
   // Get status from conversation
   const status = conversation.status ?? 'New';
-  const mockOrders = conversation.intent === 'Order' ? 2 : 0;
+  // Get actual orders count for this conversation
+  const conversationOrders = getOrdersByConversationId(conversation.id);
+  const ordersCount = conversationOrders.length;
 
   return (
     <div className="flex h-full flex-col">
@@ -200,13 +205,25 @@ export function ChatView({ messages, conversation }: ChatViewProps) {
               <span className="text-gray-300">•</span>
               <span className="text-green-600">Active</span>
               <span className="text-gray-300">•</span>
-              <span>{mockOrders} orders</span>
+              <span>{ordersCount} orders</span>
               <span className="text-gray-300">•</span>
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getStatusStyle(status)}`}>
                 {status}
               </span>
             </div>
           </div>
+
+          {/* Create Order Button */}
+          {onCreateOrder && (
+            <button
+              onClick={onCreateOrder}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5D3E] text-white text-xs font-medium rounded-lg hover:bg-[#234430] transition-colors"
+              title="Create order for this conversation"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Create Order
+            </button>
+          )}
         </div>
       </div>
 

@@ -14,10 +14,14 @@ import {
   CreditCard,
   RotateCcw,
   Zap,
+  ExternalLink,
+  Link2,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { ExtendedOrder, OrderTimelineEvent, OrderPriority, PaymentStatus } from '@/lib/orders.mock';
-import { OrderStatusBadge, ORDER_STATUS_CONFIG } from './OrderStatusBadge';
+import { OrderStatusBadge, OrderStatus, ORDER_STATUS_CONFIG, getAllowedNextStatuses } from './OrderStatusBadge';
+import { StatusUpdateModal } from './StatusUpdateModal';
 import { getChannelIcon, getChannelName } from '@/components/shared/ChannelIcons';
 import { useState } from 'react';
 
@@ -25,6 +29,7 @@ interface OrderDetailsDrawerProps {
   order: ExtendedOrder | null;
   isOpen: boolean;
   onClose: () => void;
+  onUpdateStatus?: (orderId: string, newStatus: OrderStatus) => void;
 }
 
 // Copy toast state
@@ -176,9 +181,23 @@ function CopyToast({ visible, label }: { visible: boolean; label: string }) {
   );
 }
 
-export function OrderDetailsDrawer({ order, isOpen, onClose }: OrderDetailsDrawerProps) {
+export function OrderDetailsDrawer({ order, isOpen, onClose, onUpdateStatus }: OrderDetailsDrawerProps) {
+  const router = useRouter();
   const { copied, label, copy } = useCopyToClipboard();
   const [isAnimating, setIsAnimating] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+
+  // Check if status can be updated
+  const allowedStatuses = order ? getAllowedNextStatuses(order.status) : [];
+  const canUpdateStatus = allowedStatuses.length > 0 && !!onUpdateStatus;
+
+  // Handle status update
+  const handleStatusUpdate = (newStatus: OrderStatus) => {
+    if (order && onUpdateStatus) {
+      onUpdateStatus(order.id, newStatus);
+      setShowStatusModal(false);
+    }
+  };
 
   // Handle escape key
   useEffect(() => {
@@ -319,17 +338,46 @@ export function OrderDetailsDrawer({ order, isOpen, onClose }: OrderDetailsDrawe
 
                 {/* Action buttons */}
                 <div className="flex gap-2 mt-4">
-                  <button
-                    disabled
-                    className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    Message
-                  </button>
-                  {order.customer.phone && (
+                  {order.conversationId ? (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const url = `/inbox?conversation=${order.conversationId}`;
+                          onClose();
+                          // Use window.location for reliable navigation
+                          window.location.href = url;
+                        }}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        View conversation
+                      </button>
+                      <button
+                        onClick={() => {
+                          const url = `${window.location.origin}/inbox?conversation=${order.conversationId}`;
+                          copy(url, 'Conversation link copied');
+                        }}
+                        className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                        title="Copy conversation link"
+                      >
+                        <Link2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
                     <button
                       disabled
                       className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed"
+                      title="Not linked to a conversation yet"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      View conversation
+                    </button>
+                  )}
+                  {order.customer.phone && (
+                    <button
+                      disabled
+                      className="flex items-center justify-center gap-2 py-2 px-3 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed"
                     >
                       <Phone className="w-4 h-4" />
                       Call
@@ -447,18 +495,24 @@ export function OrderDetailsDrawer({ order, isOpen, onClose }: OrderDetailsDrawe
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 space-y-3">
-              <button
-                disabled
-                className="w-full py-2.5 rounded-xl text-white text-sm font-medium cursor-not-allowed opacity-60"
-                style={{
-                  background: 'linear-gradient(180deg, #2F5D3E 0%, #285239 100%)',
-                }}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <CreditCard className="w-4 h-4" />
-                  Update Status
-                </span>
-              </button>
+              {canUpdateStatus ? (
+                <button
+                  onClick={() => setShowStatusModal(true)}
+                  className="w-full py-2.5 rounded-xl text-white text-sm font-medium transition-all hover:brightness-110"
+                  style={{
+                    background: 'linear-gradient(180deg, #2F5D3E 0%, #285239 100%)',
+                  }}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    Update Status
+                  </span>
+                </button>
+              ) : (
+                <div className="text-center py-2">
+                  <p className="text-sm text-gray-500">No further actions available</p>
+                </div>
+              )}
               <button
                 disabled
                 className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-400 text-sm font-medium cursor-not-allowed flex items-center justify-center gap-2"
@@ -467,6 +521,15 @@ export function OrderDetailsDrawer({ order, isOpen, onClose }: OrderDetailsDrawe
                 Refund Order
               </button>
             </div>
+
+            {/* Status Update Modal */}
+            <StatusUpdateModal
+              isOpen={showStatusModal}
+              currentStatus={order.status}
+              orderNumber={order.orderNumber}
+              onClose={() => setShowStatusModal(false)}
+              onConfirm={handleStatusUpdate}
+            />
           </>
         )}
       </div>
