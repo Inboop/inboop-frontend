@@ -13,13 +13,12 @@ import {
   Clock,
   CreditCard,
   RotateCcw,
-  ChevronRight,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ExtendedOrder, OrderTimelineEvent } from '@/lib/orders.mock';
-import { OrderStatusBadge, OrderStatus, ORDER_STATUS_CONFIG } from './OrderStatusBadge';
-import { getChannelIcon } from '@/components/shared/ChannelIcons';
-import { formatRelativeTime } from '@/lib/helpers';
+import { ExtendedOrder, OrderTimelineEvent, OrderPriority } from '@/lib/orders.mock';
+import { OrderStatusBadge, ORDER_STATUS_CONFIG } from './OrderStatusBadge';
+import { getChannelIcon, getChannelName } from '@/components/shared/ChannelIcons';
 import { useState } from 'react';
 
 interface OrderDetailsDrawerProps {
@@ -28,25 +27,38 @@ interface OrderDetailsDrawerProps {
   onClose: () => void;
 }
 
-// Copy to clipboard hook
-function useCopyToClipboard() {
-  const [copied, setCopied] = useState(false);
+// Copy toast state
+interface CopyState {
+  copied: boolean;
+  label: string;
+}
 
-  const copy = useCallback((text: string) => {
+// Copy to clipboard hook with toast message
+function useCopyToClipboard() {
+  const [state, setState] = useState<CopyState>({ copied: false, label: '' });
+
+  const copy = useCallback((text: string, label: string = 'Copied') => {
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setState({ copied: true, label });
+    setTimeout(() => setState({ copied: false, label: '' }), 2000);
   }, []);
 
-  return { copied, copy };
+  return { ...state, copy };
 }
+
+// Priority chip config
+const PRIORITY_CONFIG: Record<OrderPriority, { label: string; bgColor: string; textColor: string }> = {
+  high: { label: 'High intent', bgColor: 'bg-amber-100', textColor: 'text-amber-700' },
+  medium: { label: 'Medium intent', bgColor: 'bg-blue-50', textColor: 'text-blue-600' },
+  low: { label: 'Low intent', bgColor: 'bg-gray-100', textColor: 'text-gray-500' },
+};
 
 // Format currency
 function formatCurrency(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
-// Format date
+// Format date for timeline
 function formatDate(date: Date): string {
   return date.toLocaleDateString('en-IN', {
     day: 'numeric',
@@ -54,6 +66,15 @@ function formatDate(date: Date): string {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+  });
+}
+
+// Format short date for meta row
+function formatShortDate(date: Date): string {
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
   });
 }
 
@@ -93,8 +114,40 @@ function TimelineItem({ event, isLast }: { event: OrderTimelineEvent; isLast: bo
   );
 }
 
+// Priority Chip Component
+function PriorityChip({ priority }: { priority: OrderPriority }) {
+  const config = PRIORITY_CONFIG[priority];
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide',
+      config.bgColor,
+      config.textColor
+    )}>
+      <Zap className="w-2.5 h-2.5" />
+      {config.label}
+    </span>
+  );
+}
+
+// Copy Toast Component
+function CopyToast({ visible, label }: { visible: boolean; label: string }) {
+  return (
+    <div
+      className={cn(
+        'fixed top-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg shadow-lg transition-all duration-300',
+        visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+      )}
+    >
+      <span className="flex items-center gap-2">
+        <Check className="w-4 h-4 text-emerald-400" />
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export function OrderDetailsDrawer({ order, isOpen, onClose }: OrderDetailsDrawerProps) {
-  const { copied, copy } = useCopyToClipboard();
+  const { copied, label, copy } = useCopyToClipboard();
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Handle escape key
@@ -161,36 +214,51 @@ export function OrderDetailsDrawer({ order, isOpen, onClose }: OrderDetailsDrawe
       >
         {order && (
           <>
-            {/* Header */}
-            <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-bold text-gray-900">{order.orderNumber}</h2>
+            {/* Copy Toast */}
+            <CopyToast visible={copied} label={label} />
+
+            {/* Executive Header */}
+            <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-br from-gray-50 to-white">
+              {/* Top row: Order ID + Close */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{order.orderNumber}</h2>
                   <button
-                    onClick={() => copy(order.orderNumber)}
-                    className="p-1.5 rounded-lg hover:bg-gray-200/80 transition-colors"
+                    onClick={() => copy(order.orderNumber, 'Order ID copied')}
+                    className="p-1.5 rounded-lg hover:bg-gray-200/80 transition-colors group"
                     title="Copy order number"
                   >
-                    {copied ? (
-                      <Check className="w-4 h-4 text-emerald-600" />
-                    ) : (
-                      <Copy className="w-4 h-4 text-gray-400" />
-                    )}
+                    <Copy className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
                   </button>
+                  {order.priority && <PriorityChip priority={order.priority} />}
                 </div>
-                <div className="flex items-center gap-3">
-                  <OrderStatusBadge status={order.status} />
-                  <span className="text-xs text-gray-400">
-                    Updated {formatRelativeTime(order.updatedAt)}
-                  </span>
-                </div>
+                <button
+                  onClick={onClose}
+                  className="p-2 rounded-lg hover:bg-gray-200/80 transition-colors -mr-2 -mt-1"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg hover:bg-gray-200/80 transition-colors -mr-2"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
+
+              {/* Status + Meta Row */}
+              <div className="flex items-center gap-3 mb-3">
+                <OrderStatusBadge status={order.status} />
+              </div>
+
+              {/* Meta Row: Channel • Payment • Created */}
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span className="flex items-center gap-1.5">
+                  {getChannelIcon(order.customer.channel, 12)}
+                  <span className="capitalize">{getChannelName(order.customer.channel)}</span>
+                </span>
+                <span className="text-gray-300">•</span>
+                <span className="flex items-center gap-1">
+                  <CreditCard className="w-3 h-3" />
+                  {order.paymentMethod}
+                </span>
+                <span className="text-gray-300">•</span>
+                <span>{formatShortDate(order.createdAt)}</span>
+              </div>
             </div>
 
             {/* Content - Scrollable */}
@@ -304,10 +372,10 @@ export function OrderDetailsDrawer({ order, isOpen, onClose }: OrderDetailsDrawe
                       <p className="text-xs text-gray-600 font-mono">{order.trackingId}</p>
                     </div>
                     <button
-                      onClick={() => copy(order.trackingId || '')}
-                      className="p-1.5 rounded-lg hover:bg-purple-100 transition-colors"
+                      onClick={() => copy(order.trackingId || '', 'Tracking ID copied')}
+                      className="p-1.5 rounded-lg hover:bg-purple-100 transition-colors group"
                     >
-                      <Copy className="w-4 h-4 text-purple-600" />
+                      <Copy className="w-4 h-4 text-purple-600 group-hover:text-purple-700" />
                     </button>
                   </div>
                 )}

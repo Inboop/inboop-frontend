@@ -64,3 +64,14 @@ export const getChannelIcon = (channel: ChannelType, size = 16) => {
       return <MessengerIcon size={size} />;
   }
 };
+
+export const getChannelName = (channel: ChannelType): string => {
+  switch (channel) {
+    case 'instagram':
+      return 'Instagram';
+    case 'whatsapp':
+      return 'WhatsApp';
+    case 'messenger':
+      return 'Messenger';
+  }
+};
