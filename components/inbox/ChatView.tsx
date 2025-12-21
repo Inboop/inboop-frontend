@@ -5,8 +5,8 @@ import { Message, Conversation, ChannelType } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { formatMessageTime } from '@/lib/helpers';
-import { Send, Loader2, Instagram, MessageCircle, Facebook, Smile, Paperclip, MessageSquare, CheckCheck, Plus } from 'lucide-react';
+import { formatMessageTime, isInboundMessage, isOutboundMessage } from '@/lib/helpers';
+import { Send, Loader2, Instagram, MessageCircle, Facebook, Smile, Paperclip, MessageSquare, CheckCheck, Plus, Image, Video, FileText, Mic } from 'lucide-react';
 import { useOrderStore } from '@/stores/useOrderStore';
 
 interface ChatViewProps {
@@ -144,6 +144,27 @@ const getInitials = (name?: string) => {
     .slice(0, 2);
 };
 
+// Helper to determine if message is from customer (uses direction if available, falls back to isFromCustomer)
+const isMessageFromCustomer = (message: Message): boolean => {
+  return isInboundMessage(message.direction, message.isFromCustomer);
+};
+
+// Helper to render attachment icon based on content type
+const getContentTypeIcon = (contentType?: string) => {
+  switch (contentType) {
+    case 'IMAGE':
+      return <Image className="w-4 h-4" />;
+    case 'VIDEO':
+      return <Video className="w-4 h-4" />;
+    case 'AUDIO':
+      return <Mic className="w-4 h-4" />;
+    case 'FILE':
+      return <FileText className="w-4 h-4" />;
+    default:
+      return null;
+  }
+};
+
 export function ChatView({ messages, conversation, onCreateOrder }: ChatViewProps) {
   const [messageText, setMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -228,34 +249,71 @@ export function ChatView({ messages, conversation, onCreateOrder }: ChatViewProp
       </div>
 
       <div className={cn("flex-1 overflow-y-auto p-4 space-y-3", getChatAreaStyle())}>
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={cn(
-              'flex flex-col',
-              message.isFromCustomer ? 'items-start' : 'items-end'
-            )}
-          >
+        {messages.map((message) => {
+          const fromCustomer = isMessageFromCustomer(message);
+          const contentIcon = getContentTypeIcon(message.contentType);
+
+          return (
             <div
+              key={message.id}
               className={cn(
-                'max-w-[70%] rounded-xl px-3 py-2',
-                message.isFromCustomer
-                  ? 'bg-white border border-gray-200 text-gray-900'
-                  : 'bg-[#2F5D3E] text-white'
+                'flex flex-col',
+                fromCustomer ? 'items-start' : 'items-end'
               )}
             >
-              <p className="text-sm">{message.text}</p>
+              <div
+                className={cn(
+                  'max-w-[70%] rounded-xl px-3 py-2',
+                  fromCustomer
+                    ? 'bg-white border border-gray-200 text-gray-900'
+                    : 'bg-[#2F5D3E] text-white'
+                )}
+              >
+                {/* Show attachment indicator if present */}
+                {message.hasAttachment && message.attachmentUrl && (
+                  <div className="mb-2">
+                    {message.contentType === 'IMAGE' ? (
+                      <img
+                        src={message.attachmentUrl}
+                        alt="Attachment"
+                        className="max-w-full rounded-lg"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2 p-2 bg-gray-100 rounded-lg">
+                        {contentIcon}
+                        <span className="text-xs text-gray-600">
+                          {message.contentType} attachment
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <p className="text-sm">{message.text}</p>
+                {/* Show translated text if available */}
+                {message.translatedText && message.translatedText !== message.text && (
+                  <p className="text-xs text-gray-400 mt-1 italic">
+                    {message.translatedText}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1 mt-0.5 px-1">
+                <span className="text-[10px] text-gray-400">
+                  {formatMessageTime(message.sentAt || message.timestamp)}
+                </span>
+                {!fromCustomer && (
+                  <CheckCheck className={cn(
+                    "w-3 h-3",
+                    message.isRead ? "text-blue-400" : "text-gray-400"
+                  )} />
+                )}
+                {/* Show sender type for system messages */}
+                {message.senderType === 'SYSTEM' && (
+                  <span className="text-[10px] text-gray-400 ml-1">• System</span>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-1 mt-0.5 px-1">
-              <span className="text-[10px] text-gray-400">
-                {formatMessageTime(message.timestamp)}
-              </span>
-              {!message.isFromCustomer && (
-                <CheckCheck className="w-3 h-3 text-gray-400" />
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="border-t p-3 bg-white">

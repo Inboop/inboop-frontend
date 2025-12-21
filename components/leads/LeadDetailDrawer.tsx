@@ -8,8 +8,17 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { X, MessageSquare, ShoppingCart, ExternalLink, Save, Instagram, Phone, MessageCircle } from 'lucide-react';
-import { getIntentColor, getLeadStatusColor, getLeadStatusDot, getInitials, formatMessageTime } from '@/lib/helpers';
+import { X, MessageSquare, ShoppingCart, ExternalLink, Save, Instagram, Phone, MessageCircle, Sparkles, User } from 'lucide-react';
+import {
+  getIntentColor,
+  getLeadStatusColor,
+  getLeadStatusDot,
+  getLeadSourceColor,
+  getLeadSourceDisplayName,
+  getInitials,
+  formatMessageTime,
+  isTerminalLeadStatus,
+} from '@/lib/helpers';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -170,15 +179,49 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as LeadStatus)}
-                className="mt-2 w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E] transition-all"
+                disabled={isTerminalLeadStatus(originalStatus)}
+                className={cn(
+                  "mt-2 w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E] transition-all",
+                  isTerminalLeadStatus(originalStatus) && "opacity-60 cursor-not-allowed"
+                )}
               >
                 <option value="New">New</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Qualified">Qualified</option>
+                <option value="Contacted">Contacted (Legacy)</option>
+                <option value="Qualified">Qualified (Legacy)</option>
+                <option value="Negotiating">Negotiating (Legacy)</option>
                 <option value="Converted">Converted</option>
+                <option value="Closed">Closed</option>
                 <option value="Lost">Lost</option>
+                <option value="Spam">Spam (Legacy)</option>
               </select>
+              {isTerminalLeadStatus(originalStatus) && (
+                <p className="mt-1.5 text-xs text-gray-400">
+                  This lead is in a terminal state and cannot be changed.
+                </p>
+              )}
             </div>
+
+            {/* Source Badge */}
+            {lead.source && (
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Source
+                </label>
+                <div className="mt-2">
+                  <span className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium',
+                    getLeadSourceColor(lead.source)
+                  )}>
+                    {lead.source === 'AI' ? (
+                      <Sparkles className="w-3.5 h-3.5" />
+                    ) : (
+                      <User className="w-3.5 h-3.5" />
+                    )}
+                    {getLeadSourceDisplayName(lead.source)}
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">

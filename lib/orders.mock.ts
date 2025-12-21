@@ -67,6 +67,8 @@ export interface ExtendedOrder {
   conversationId?: string | null;
   createdAt: Date;
   updatedAt: Date;
+  archivedAt?: Date | null;
+  deletedAt?: Date | null;
 }
 
 // Mock data for orders with full details
