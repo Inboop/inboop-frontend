@@ -7,7 +7,6 @@ import {
   Star,
   Clock,
   DollarSign,
-  ShoppingCart,
   Send,
   Calendar,
   Tag,
@@ -22,6 +21,7 @@ import { Conversation, ConversationStatus, LeadStatus, IntentType } from "@/type
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLeadStore } from "@/stores/useLeadStore";
+import { ConversationOrders } from "./ConversationOrders";
 
 interface LeadSnapshotProps {
   conversation: Conversation | null;
@@ -45,8 +45,6 @@ export function LeadSnapshot({
 
   // Get status from lead, default to 'New'
   const [status, setStatus] = useState<LeadStatus>(lead?.status ?? 'New');
-  const [orders, setOrders] = useState("3");
-  const [isEditingOrders, setIsEditingOrders] = useState(false);
   const [leadValue, setLeadValue] = useState(lead?.value?.toString() || "0");
   const [isEditingValue, setIsEditingValue] = useState(false);
   const [tags, setTags] = useState<string[]>(lead?.labels || []);
@@ -448,6 +446,9 @@ export function LeadSnapshot({
         </div>
       </div>
 
+      {/* Orders Section */}
+      <ConversationOrders conversation={conversation} />
+
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-xs text-gray-500 uppercase tracking-wide mb-3">
           Quick Insights
@@ -455,40 +456,12 @@ export function LeadSnapshot({
         <div className="grid grid-cols-2 gap-2">
           <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex items-center gap-1.5 mb-1">
-              <ShoppingCart className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs text-gray-500">Orders</span>
-            </div>
-            {isEditingOrders ? (
-              <input
-                type="text"
-                value={orders}
-                onChange={(e) => setOrders(e.target.value)}
-                onBlur={() => setIsEditingOrders(false)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    setIsEditingOrders(false);
-                  }
-                }}
-                autoFocus
-                className="w-full text-gray-900 text-sm font-medium bg-white border border-gray-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-[#2F5D3E] focus:border-[#2F5D3E]"
-              />
-            ) : (
-              <div
-                onClick={() => setIsEditingOrders(true)}
-                className="text-gray-900 text-sm font-medium cursor-pointer hover:text-gray-600 transition-colors"
-              >
-                {orders || "0"}
-              </div>
-            )}
-          </div>
-          <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex items-center gap-1.5 mb-1">
               <Clock className="w-3.5 h-3.5 text-gray-400" />
               <span className="text-xs text-gray-500">Last Reply</span>
             </div>
             <div className="text-gray-900 text-sm font-medium">2m ago</div>
           </div>
-          <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200 col-span-2">
+          <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex items-center gap-1.5 mb-1">
               <DollarSign className="w-3.5 h-3.5 text-gray-400" />
               <span className="text-xs text-gray-500">Lead Value</span>

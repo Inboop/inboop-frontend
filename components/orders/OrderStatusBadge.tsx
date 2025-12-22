@@ -70,26 +70,28 @@ export const ORDER_STATUSES: OrderStatus[] = [
   'CANCELLED',
 ];
 
-interface OrderStatusBadgeProps {
+export interface OrderStatusBadgeProps {
   status: OrderStatus;
   showIcon?: boolean;
+  size?: 'default' | 'small';
   className?: string;
 }
 
-export function OrderStatusBadge({ status, showIcon = true, className }: OrderStatusBadgeProps) {
+export function OrderStatusBadge({ status, showIcon = true, size = 'default', className }: OrderStatusBadgeProps) {
   const config = ORDER_STATUS_CONFIG[status];
   const { Icon, label, bgColor, textColor } = config;
 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold',
+        'inline-flex items-center font-semibold rounded-md',
         bgColor,
         textColor,
+        size === 'small' ? 'gap-1 px-1.5 py-0.5 text-[10px]' : 'gap-1.5 px-2 py-1 text-xs',
         className
       )}
     >
-      {showIcon && <Icon className="w-3 h-3" />}
+      {showIcon && <Icon className={cn(size === 'small' ? 'w-2.5 h-2.5' : 'w-3 h-3')} />}
       {label}
     </span>
   );
