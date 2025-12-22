@@ -6,13 +6,20 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatMessageTime, isInboundMessage, isOutboundMessage } from '@/lib/helpers';
-import { Send, Loader2, Instagram, MessageCircle, Facebook, Smile, Paperclip, MessageSquare, CheckCheck, Plus, Image, Video, FileText, Mic } from 'lucide-react';
+import { Send, Loader2, Instagram, MessageCircle, Facebook, Smile, Paperclip, MessageSquare, CheckCheck, Plus, Image, Video, FileText, Mic, User, Info } from 'lucide-react';
 import { useOrderStore } from '@/stores/useOrderStore';
+import { AssigneeChip, TeamMember } from '@/components/shared/AssigneeChip';
 
 interface ChatViewProps {
   messages: Message[];
   conversation: Conversation | null;
   onCreateOrder?: () => void;
+  /** Called when conversation assignment changes */
+  onAssign?: (userId: number | null) => Promise<void>;
+  /** Whether assignment is being updated */
+  isAssigning?: boolean;
+  /** List of team members for assignment dropdown */
+  teamMembers?: TeamMember[];
 }
 
 // Instagram gradient icon
@@ -165,7 +172,7 @@ const getContentTypeIcon = (contentType?: string) => {
   }
 };
 
-export function ChatView({ messages, conversation, onCreateOrder }: ChatViewProps) {
+export function ChatView({ messages, conversation, onCreateOrder, onAssign, isAssigning, teamMembers }: ChatViewProps) {
   const [messageText, setMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const { getOrdersByConversationId } = useOrderStore();
@@ -232,6 +239,19 @@ export function ChatView({ messages, conversation, onCreateOrder }: ChatViewProp
                 {status}
               </span>
             </div>
+          </div>
+
+          {/* Assignment Chip */}
+          <div className="flex items-center">
+            <AssigneeChip
+              assignedToUserId={conversation.assignedToUserId ? Number(conversation.assignedToUserId) : null}
+              assignedToName={conversation.assignedTo}
+              teamMembers={teamMembers}
+              onAssign={onAssign}
+              isLoading={isAssigning}
+              readOnly={!onAssign}
+              size="sm"
+            />
           </div>
 
           {/* Create Order Button */}

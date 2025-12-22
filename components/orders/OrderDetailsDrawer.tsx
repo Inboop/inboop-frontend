@@ -14,25 +14,26 @@ import {
   Link2,
   AlertCircle,
   RefreshCw,
-  User,
-  ChevronDown,
   XCircle,
   CheckCircle,
   Circle,
   Loader2,
   Ban,
   DollarSign,
-  UserMinus,
   AlertTriangle,
   Bot,
   Pencil,
   Plus,
   Trash2,
+  ChevronDown,
+  User,
+  UserMinus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/stores/useToastStore';
 import * as ordersApi from '@/lib/ordersApi';
+import { AssigneeChip, TeamMember } from '@/components/shared/AssigneeChip';
 import {
   OrderStatus,
   OrderStatusBadge,
@@ -46,6 +47,8 @@ interface OrderDetailsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onOrderUpdated?: () => void;
+  /** List of team members for assignment dropdown */
+  teamMembers?: TeamMember[];
 }
 
 // Copy toast state
@@ -784,6 +787,7 @@ export function OrderDetailsDrawer({
   isOpen,
   onClose,
   onOrderUpdated,
+  teamMembers,
 }: OrderDetailsDrawerProps) {
   const { copied, label, copy } = useCopyToClipboard();
   const [isAnimating, setIsAnimating] = useState(false);
@@ -798,7 +802,6 @@ export function OrderDetailsDrawer({
 
   // Dropdown states
   const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
-  const [showAssignDropdown, setShowAssignDropdown] = useState(false);
 
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -870,13 +873,12 @@ export function OrderDetailsDrawer({
   useEffect(() => {
     function handleClickOutside() {
       setShowPaymentDropdown(false);
-      setShowAssignDropdown(false);
     }
-    if (showPaymentDropdown || showAssignDropdown) {
+    if (showPaymentDropdown) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [showPaymentDropdown, showAssignDropdown]);
+  }, [showPaymentDropdown]);
 
   // Reset on close
   useEffect(() => {
@@ -953,7 +955,6 @@ export function OrderDetailsDrawer({
   };
 
   const handleAssign = async (userId: number | null) => {
-    setShowAssignDropdown(false);
     const message = userId ? 'Order assigned' : 'Order unassigned';
     await handleAction(
       'assign',
@@ -1519,99 +1520,16 @@ export function OrderDetailsDrawer({
               <div className="w-56 border-l border-gray-100 bg-gray-50/80 flex flex-col">
                 {/* Assignee Section - At Top */}
                 <div className="p-4 border-b border-gray-100 bg-white">
-                  <SectionHeader title="Assigned To" />
-                  {!isTerminal ? (
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowAssignDropdown(!showAssignDropdown);
-                        }}
-                        disabled={!!actionLoading}
-                        className={cn(
-                          'w-full flex items-center gap-3 p-3 rounded-xl text-sm transition-all',
-                          order.assignedToUserName
-                            ? 'bg-gray-50 hover:bg-gray-100'
-                            : 'bg-amber-50 border border-dashed border-amber-200 hover:bg-amber-100'
-                        )}
-                      >
-                        {order.assignedToUserName ? (
-                          <>
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-xs font-semibold text-white flex-shrink-0">
-                              {order.assignedToUserName
-                                .split(' ')
-                                .map((n) => n[0])
-                                .join('')
-                                .toUpperCase()
-                                .slice(0, 2)}
-                            </div>
-                            <span className="text-gray-900 font-medium truncate flex-1 text-left">
-                              {order.assignedToUserName}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                              <User className="w-4 h-4 text-amber-600" />
-                            </div>
-                            <span className="text-amber-700 font-medium flex-1 text-left">
-                              Unassigned
-                            </span>
-                          </>
-                        )}
-                        {actionLoading === 'assign' ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-gray-400 flex-shrink-0" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        )}
-                      </button>
-
-                      {showAssignDropdown && (
-                        <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
-                          <button
-                            onClick={() => handleAssign(null)}
-                            className="w-full px-4 py-3 text-sm text-left flex items-center gap-3 hover:bg-gray-50 transition-colors"
-                          >
-                            <UserMinus className="w-4 h-4 text-gray-400" />
-                            <span>Unassign</span>
-                          </button>
-                          <button
-                            onClick={() => handleAssign(1)}
-                            className="w-full px-4 py-3 text-sm text-left flex items-center gap-3 hover:bg-gray-50 transition-colors border-t border-gray-100"
-                          >
-                            <User className="w-4 h-4 text-gray-400" />
-                            <span>Assign to me</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    /* Read-only assignee for terminal orders */
-                    <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl">
-                      {order.assignedToUserName ? (
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-xs font-semibold text-white flex-shrink-0">
-                            {order.assignedToUserName
-                              .split(' ')
-                              .map((n) => n[0])
-                              .join('')
-                              .toUpperCase()
-                              .slice(0, 2)}
-                          </div>
-                          <span className="text-gray-700 font-medium truncate">
-                            {order.assignedToUserName}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                            <User className="w-4 h-4 text-gray-400" />
-                          </div>
-                          <span className="text-gray-500 font-medium">Unassigned</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <AssigneeChip
+                    assignedToUserId={order.assignedToUserId}
+                    assignedToName={order.assignedToUserName}
+                    teamMembers={teamMembers}
+                    onAssign={handleAssign}
+                    isLoading={actionLoading === 'assign'}
+                    readOnly={isTerminal}
+                    size="md"
+                    showLabel
+                  />
                 </div>
 
                 {/* Actions */}

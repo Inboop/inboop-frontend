@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { X, MessageSquare, ShoppingCart, ExternalLink, Save, Instagram, Phone, MessageCircle, Sparkles, User } from 'lucide-react';
+import { AssigneeChip, TeamMember } from '@/components/shared/AssigneeChip';
 import {
   getIntentColor,
   getLeadStatusColor,
@@ -26,9 +27,15 @@ import { cn } from '@/lib/utils';
 interface LeadDetailDrawerProps {
   lead: Lead | null;
   onClose: () => void;
+  /** Called when lead assignment changes */
+  onAssign?: (userId: number | null) => Promise<void>;
+  /** Whether assignment is being updated */
+  isAssigning?: boolean;
+  /** List of team members for assignment dropdown */
+  teamMembers?: TeamMember[];
 }
 
-export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
+export function LeadDetailDrawer({ lead, onClose, onAssign, isAssigning, teamMembers }: LeadDetailDrawerProps) {
   const router = useRouter();
   const [status, setStatus] = useState<LeadStatus>(lead?.status || 'New');
   const [originalStatus, setOriginalStatus] = useState<LeadStatus>(lead?.status || 'New');
@@ -237,21 +244,16 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
               </div>
             </div>
 
-            {lead.assignedTo && (
-              <div>
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Assigned To
-                </label>
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center">
-                    <span className="text-xs font-medium text-gray-600">
-                      {lead.assignedTo[0]}
-                    </span>
-                  </div>
-                  <span className="text-sm text-gray-700">{lead.assignedTo}</span>
-                </div>
-              </div>
-            )}
+            <AssigneeChip
+              assignedToUserId={lead.assignedToUserId ? Number(lead.assignedToUserId) : null}
+              assignedToName={lead.assignedTo}
+              teamMembers={teamMembers}
+              onAssign={onAssign}
+              isLoading={isAssigning}
+              readOnly={!onAssign || isTerminalLeadStatus(originalStatus)}
+              size="md"
+              showLabel
+            />
           </div>
 
           {/* Last Message Section */}
