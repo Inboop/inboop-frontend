@@ -119,6 +119,38 @@ export interface AssignOrderRequest {
   assignedToUserId: number | null;
 }
 
+// Request type for updating items
+export interface UpdateItemsRequest {
+  items: UpdateItemRequest[];
+}
+
+export interface UpdateItemRequest {
+  name: string;
+  quantity?: number;
+  unitPrice?: number;
+}
+
+// Request type for updating shipping
+export interface UpdateShippingRequest {
+  address?: UpdateAddressRequest;
+  tracking?: UpdateTrackingRequest;
+}
+
+export interface UpdateAddressRequest {
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+}
+
+export interface UpdateTrackingRequest {
+  carrier?: string;
+  trackingId?: string;
+  trackingUrl?: string;
+}
+
 // Request type for creating an order
 export interface CreateOrderRequest {
   conversationId: number;
@@ -300,6 +332,35 @@ export async function assignOrder(orderId: number, request: AssignOrderRequest):
 export async function createOrder(request: CreateOrderRequest): Promise<OrderDetail> {
   const response = await fetch(`${API_URL}/api/v1/orders`, {
     method: 'POST',
+    headers: buildHeaders(),
+    body: JSON.stringify(request),
+  });
+
+  return handleResponse<OrderDetail>(response);
+}
+
+/**
+ * Update order items.
+ * Replaces all existing items with new items.
+ * Recalculates totalAmount automatically.
+ */
+export async function updateOrderItems(orderId: number, request: UpdateItemsRequest): Promise<OrderDetail> {
+  const response = await fetch(`${API_URL}/api/v1/orders/${orderId}/items`, {
+    method: 'PATCH',
+    headers: buildHeaders(),
+    body: JSON.stringify(request),
+  });
+
+  return handleResponse<OrderDetail>(response);
+}
+
+/**
+ * Update shipping details.
+ * Allows partial updates - only updates fields that are provided.
+ */
+export async function updateOrderShipping(orderId: number, request: UpdateShippingRequest): Promise<OrderDetail> {
+  const response = await fetch(`${API_URL}/api/v1/orders/${orderId}/shipping`, {
+    method: 'PATCH',
     headers: buildHeaders(),
     body: JSON.stringify(request),
   });

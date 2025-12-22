@@ -25,6 +25,9 @@ import {
   UserMinus,
   AlertTriangle,
   Bot,
+  Pencil,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -334,6 +337,378 @@ function ConfirmationModal({
   );
 }
 
+// Edit Items Modal Component
+function EditItemsModal({
+  isOpen,
+  items,
+  currency,
+  isLoading,
+  onSave,
+  onCancel,
+}: {
+  isOpen: boolean;
+  items: ordersApi.OrderItem[];
+  currency: string | null;
+  isLoading: boolean;
+  onSave: (items: ordersApi.UpdateItemRequest[]) => void;
+  onCancel: () => void;
+}) {
+  const [editItems, setEditItems] = useState<ordersApi.UpdateItemRequest[]>([]);
+
+  // Initialize form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setEditItems(
+        items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        }))
+      );
+    }
+  }, [isOpen, items]);
+
+  const addItem = () => {
+    setEditItems([...editItems, { name: '', quantity: 1, unitPrice: 0 }]);
+  };
+
+  const removeItem = (index: number) => {
+    setEditItems(editItems.filter((_, i) => i !== index));
+  };
+
+  const updateItem = (index: number, field: keyof ordersApi.UpdateItemRequest, value: string | number) => {
+    const updated = [...editItems];
+    if (field === 'name') {
+      updated[index] = { ...updated[index], name: value as string };
+    } else if (field === 'quantity') {
+      updated[index] = { ...updated[index], quantity: Math.max(1, Number(value) || 1) };
+    } else if (field === 'unitPrice') {
+      updated[index] = { ...updated[index], unitPrice: Math.max(0, Number(value) || 0) };
+    }
+    setEditItems(updated);
+  };
+
+  const calculateTotal = () => {
+    return editItems.reduce((sum, item) => {
+      return sum + (item.quantity || 1) * (item.unitPrice || 0);
+    }, 0);
+  };
+
+  const handleSave = () => {
+    // Filter out empty items
+    const validItems = editItems.filter((item) => item.name.trim());
+    onSave(validItems);
+  };
+
+  if (!isOpen) return null;
+
+  const symbol = currency === 'INR' ? '₹' : '$';
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 z-[60]" onClick={onCancel} />
+      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-full max-w-lg mx-4">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
+          {/* Header */}
+          <div className="p-5 pb-4 border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Edit Items</h3>
+              <button
+                onClick={onCancel}
+                disabled={isLoading}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+          </div>
+
+          {/* Items List */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-3">
+            {editItems.map((item, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl"
+              >
+                <div className="flex-1 min-w-0">
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={(e) => updateItem(index, 'name', e.target.value)}
+                    placeholder="Item name"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E]"
+                  />
+                </div>
+                <div className="w-20">
+                  <input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                    min="1"
+                    placeholder="Qty"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E] text-center"
+                  />
+                </div>
+                <div className="w-28">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                      {symbol}
+                    </span>
+                    <input
+                      type="number"
+                      value={item.unitPrice}
+                      onChange={(e) => updateItem(index, 'unitPrice', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      placeholder="Price"
+                      className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E]"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => removeItem(index)}
+                  className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+
+            {/* Add Item Button */}
+            <button
+              onClick={addItem}
+              className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-600 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Item
+            </button>
+          </div>
+
+          {/* Footer with Total */}
+          <div className="p-5 pt-4 border-t border-gray-100 bg-gray-50">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-gray-600">New Total</span>
+              <span className="text-lg font-bold text-gray-900">
+                {symbol}{calculateTotal().toLocaleString()}
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={onCancel}
+                disabled={isLoading}
+                className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isLoading || editItems.filter((i) => i.name.trim()).length === 0}
+                className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-white bg-[#2F5D3E] hover:bg-[#285239] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// Edit Shipping Modal Component
+function EditShippingModal({
+  isOpen,
+  shippingAddress,
+  tracking,
+  isLoading,
+  onSave,
+  onCancel,
+}: {
+  isOpen: boolean;
+  shippingAddress: ordersApi.ShippingAddress | null;
+  tracking: ordersApi.TrackingInfo | null;
+  isLoading: boolean;
+  onSave: (request: ordersApi.UpdateShippingRequest) => void;
+  onCancel: () => void;
+}) {
+  const [address, setAddress] = useState<ordersApi.UpdateAddressRequest>({});
+  const [trackingInfo, setTrackingInfo] = useState<ordersApi.UpdateTrackingRequest>({});
+
+  // Initialize form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setAddress({
+        line1: shippingAddress?.line1 || '',
+        line2: shippingAddress?.line2 || '',
+        city: shippingAddress?.city || '',
+        state: shippingAddress?.state || '',
+        postalCode: shippingAddress?.postalCode || '',
+        country: shippingAddress?.country || '',
+      });
+      setTrackingInfo({
+        carrier: tracking?.carrier || '',
+        trackingId: tracking?.trackingId || '',
+        trackingUrl: tracking?.trackingUrl || '',
+      });
+    }
+  }, [isOpen, shippingAddress, tracking]);
+
+  const handleSave = () => {
+    const request: ordersApi.UpdateShippingRequest = {};
+
+    // Only include address if any field has value
+    const hasAddress = Object.values(address).some((v) => v?.trim());
+    if (hasAddress) {
+      request.address = address;
+    }
+
+    // Only include tracking if any field has value
+    const hasTracking = Object.values(trackingInfo).some((v) => v?.trim());
+    if (hasTracking) {
+      request.tracking = trackingInfo;
+    }
+
+    onSave(request);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 z-[60]" onClick={onCancel} />
+      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-full max-w-lg mx-4">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
+          {/* Header */}
+          <div className="p-5 pb-4 border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Edit Shipping Details</h3>
+              <button
+                onClick={onCancel}
+                disabled={isLoading}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+          </div>
+
+          {/* Form Content */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* Address Section */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-gray-400" />
+                Shipping Address
+              </h4>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={address.line1 || ''}
+                  onChange={(e) => setAddress({ ...address, line1: e.target.value })}
+                  placeholder="Address Line 1"
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E]"
+                />
+                <input
+                  type="text"
+                  value={address.line2 || ''}
+                  onChange={(e) => setAddress({ ...address, line2: e.target.value })}
+                  placeholder="Address Line 2 (optional)"
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E]"
+                />
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={address.city || ''}
+                    onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                    placeholder="City"
+                    className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E]"
+                  />
+                  <input
+                    type="text"
+                    value={address.state || ''}
+                    onChange={(e) => setAddress({ ...address, state: e.target.value })}
+                    placeholder="State"
+                    className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E]"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={address.postalCode || ''}
+                    onChange={(e) => setAddress({ ...address, postalCode: e.target.value })}
+                    placeholder="Postal Code"
+                    className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E]"
+                  />
+                  <input
+                    type="text"
+                    value={address.country || ''}
+                    onChange={(e) => setAddress({ ...address, country: e.target.value })}
+                    placeholder="Country"
+                    className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Tracking Section */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Truck className="w-4 h-4 text-gray-400" />
+                Tracking Information
+              </h4>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={trackingInfo.carrier || ''}
+                  onChange={(e) => setTrackingInfo({ ...trackingInfo, carrier: e.target.value })}
+                  placeholder="Carrier (e.g., FedEx, DHL)"
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E]"
+                />
+                <input
+                  type="text"
+                  value={trackingInfo.trackingId || ''}
+                  onChange={(e) => setTrackingInfo({ ...trackingInfo, trackingId: e.target.value })}
+                  placeholder="Tracking Number"
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E]"
+                />
+                <input
+                  type="url"
+                  value={trackingInfo.trackingUrl || ''}
+                  onChange={(e) => setTrackingInfo({ ...trackingInfo, trackingUrl: e.target.value })}
+                  placeholder="Tracking URL (optional)"
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-5 pt-4 border-t border-gray-100">
+            <div className="flex gap-3">
+              <button
+                onClick={onCancel}
+                disabled={isLoading}
+                className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isLoading}
+                className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-white bg-[#2F5D3E] hover:bg-[#285239] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // Action Button Component (enhanced)
 function ActionButton({
   onClick,
@@ -407,6 +782,10 @@ export function OrderDetailsDrawer({
     isOpen: boolean;
     action: 'cancel' | 'refund' | null;
   }>({ isOpen: false, action: null });
+
+  // Edit modal states
+  const [showEditItemsModal, setShowEditItemsModal] = useState(false);
+  const [showEditShippingModal, setShowEditShippingModal] = useState(false);
 
   // Fetch order detail
   const fetchOrder = useCallback(async () => {
@@ -556,6 +935,24 @@ export function OrderDetailsDrawer({
       () => ordersApi.assignOrder(order!.id, { assignedToUserId: userId }),
       message
     );
+  };
+
+  const handleUpdateItems = async (items: ordersApi.UpdateItemRequest[]) => {
+    await handleAction(
+      'updateItems',
+      () => ordersApi.updateOrderItems(order!.id, { items }),
+      'Items updated'
+    );
+    setShowEditItemsModal(false);
+  };
+
+  const handleUpdateShipping = async (request: ordersApi.UpdateShippingRequest) => {
+    await handleAction(
+      'updateShipping',
+      () => ordersApi.updateOrderShipping(order!.id, request),
+      'Shipping details updated'
+    );
+    setShowEditShippingModal(false);
   };
 
   // Determine allowed actions based on status
@@ -801,7 +1198,21 @@ export function OrderDetailsDrawer({
 
                 {/* Items Section */}
                 <div className="px-6 py-5">
-                  <SectionHeader title="Items" />
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                      Items
+                    </h3>
+                    {!isTerminal && (
+                      <button
+                        onClick={() => setShowEditItemsModal(true)}
+                        disabled={!!actionLoading}
+                        className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        Edit
+                      </button>
+                    )}
+                  </div>
 
                   {order.items.length > 0 ? (
                     <div className="rounded-xl border border-gray-100 overflow-hidden">
@@ -856,7 +1267,21 @@ export function OrderDetailsDrawer({
 
                 {/* Shipping Section */}
                 <div className="px-6 py-5">
-                  <SectionHeader title="Shipping" />
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                      Shipping
+                    </h3>
+                    {!isTerminal && (
+                      <button
+                        onClick={() => setShowEditShippingModal(true)}
+                        disabled={!!actionLoading}
+                        className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        {order.shippingAddress?.line1 || order.tracking?.carrier ? 'Edit' : 'Add'}
+                      </button>
+                    )}
+                  </div>
 
                   {order.shippingAddress &&
                   (order.shippingAddress.line1 || order.shippingAddress.city) ? (
@@ -1235,6 +1660,30 @@ export function OrderDetailsDrawer({
         onConfirm={handleRefund}
         onCancel={() => setConfirmModal({ isOpen: false, action: null })}
       />
+
+      {/* Edit Items Modal */}
+      {order && (
+        <EditItemsModal
+          isOpen={showEditItemsModal}
+          items={order.items}
+          currency={order.currency}
+          isLoading={actionLoading === 'updateItems'}
+          onSave={handleUpdateItems}
+          onCancel={() => setShowEditItemsModal(false)}
+        />
+      )}
+
+      {/* Edit Shipping Modal */}
+      {order && (
+        <EditShippingModal
+          isOpen={showEditShippingModal}
+          shippingAddress={order.shippingAddress}
+          tracking={order.tracking}
+          isLoading={actionLoading === 'updateShipping'}
+          onSave={handleUpdateShipping}
+          onCancel={() => setShowEditShippingModal(false)}
+        />
+      )}
     </>
   );
 }
