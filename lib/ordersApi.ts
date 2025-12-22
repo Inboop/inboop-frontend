@@ -119,6 +119,24 @@ export interface AssignOrderRequest {
   assignedToUserId: number | null;
 }
 
+// Request type for creating an order
+export interface CreateOrderRequest {
+  conversationId: number;
+  leadId?: number;
+  items?: CreateOrderItemRequest[];
+  totalAmount?: number;
+  currency?: string;
+  notes?: string;
+  paymentMethod?: PaymentMethod;
+  idempotencyKey?: string;
+}
+
+export interface CreateOrderItemRequest {
+  name: string;
+  quantity?: number;
+  unitPrice?: number;
+}
+
 // Helper to get auth token
 function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -269,6 +287,19 @@ export async function updatePaymentStatus(orderId: number, request: UpdatePaymen
 export async function assignOrder(orderId: number, request: AssignOrderRequest): Promise<OrderDetail> {
   const response = await fetch(`${API_URL}/api/v1/orders/${orderId}/assign`, {
     method: 'PATCH',
+    headers: buildHeaders(),
+    body: JSON.stringify(request),
+  });
+
+  return handleResponse<OrderDetail>(response);
+}
+
+/**
+ * Create a new order.
+ */
+export async function createOrder(request: CreateOrderRequest): Promise<OrderDetail> {
+  const response = await fetch(`${API_URL}/api/v1/orders`, {
+    method: 'POST',
     headers: buildHeaders(),
     body: JSON.stringify(request),
   });

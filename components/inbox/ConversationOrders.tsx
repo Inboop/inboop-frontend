@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ShoppingCart, ChevronRight, Package, Loader2, RefreshCw } from 'lucide-react';
+import { ShoppingCart, ChevronRight, Package, RefreshCw, Plus } from 'lucide-react';
 import { Conversation } from '@/types';
 import * as ordersApi from '@/lib/ordersApi';
 import { OrderStatusBadge, OrderStatus } from '@/components/orders/OrderStatusBadge';
 import { OrderDetailsDrawer } from '@/components/orders/OrderDetailsDrawer';
+import { CreateOrderDrawer, CreateOrderInitialValues } from '@/components/orders/CreateOrderDrawer';
 import { cn } from '@/lib/utils';
 
 interface ConversationOrdersProps {
@@ -54,6 +55,7 @@ export function ConversationOrders({ conversation }: ConversationOrdersProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
 
   // Track which conversation we've fetched orders for
   const fetchedForRef = useRef<string | null>(null);
@@ -121,6 +123,35 @@ export function ConversationOrders({ conversation }: ConversationOrdersProps) {
     fetchOrders();
   };
 
+  // Handle create order button
+  const handleCreateOrder = () => {
+    setIsCreateDrawerOpen(true);
+  };
+
+  // Handle order created - open the new order in details drawer
+  const handleOrderCreated = (orderId: number) => {
+    setIsCreateDrawerOpen(false);
+    // Refresh orders list
+    fetchedForRef.current = null;
+    fetchOrders();
+    // Open the new order in details drawer
+    setSelectedOrderId(orderId);
+    setIsDrawerOpen(true);
+  };
+
+  // Build initial values for create drawer
+  const getCreateOrderInitialValues = (): CreateOrderInitialValues | undefined => {
+    if (!conversation) return undefined;
+    return {
+      conversationId: parseInt(conversation.id, 10),
+      customer: {
+        name: conversation.customerName || undefined,
+        handle: conversation.customerHandle,
+      },
+      channel: conversation.channel,
+    };
+  };
+
   if (!conversation) return null;
 
   // Get summary stats
@@ -136,15 +167,24 @@ export function ConversationOrders({ conversation }: ConversationOrdersProps) {
             <ShoppingCart className="w-3.5 h-3.5" />
             Orders
           </h3>
-          {!isLoading && orders.length > 0 && (
+          <div className="flex items-center gap-1">
+            {!isLoading && orders.length > 0 && (
+              <button
+                onClick={handleRefresh}
+                className="p-1 rounded hover:bg-gray-100 transition-colors"
+                title="Refresh orders"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-gray-400" />
+              </button>
+            )}
             <button
-              onClick={handleRefresh}
+              onClick={handleCreateOrder}
               className="p-1 rounded hover:bg-gray-100 transition-colors"
-              title="Refresh orders"
+              title="Create order"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-gray-400" />
+              <Plus className="w-3.5 h-3.5 text-gray-400" />
             </button>
-          )}
+          </div>
         </div>
 
         {/* Loading State */}
@@ -267,6 +307,14 @@ export function ConversationOrders({ conversation }: ConversationOrdersProps) {
         isOpen={isDrawerOpen}
         onClose={handleDrawerClose}
         onOrderUpdated={handleOrderUpdated}
+      />
+
+      {/* Create Order Drawer */}
+      <CreateOrderDrawer
+        isOpen={isCreateDrawerOpen}
+        onClose={() => setIsCreateDrawerOpen(false)}
+        onOrderCreated={handleOrderCreated}
+        initialValues={getCreateOrderInitialValues()}
       />
     </>
   );

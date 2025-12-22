@@ -35,7 +35,7 @@ import {
   getStatusLabel,
 } from '@/components/orders/OrderStatusBadge';
 import { OrderDetailsDrawer } from '@/components/orders/OrderDetailsDrawer';
-import { CreateOrderDrawer } from '@/components/orders/CreateOrderDrawer';
+// CreateOrderDrawer removed - orders are now created from Inbox
 import { mockExtendedOrders, ExtendedOrder } from '@/lib/orders.mock';
 import { toast } from '@/stores/useToastStore';
 import { useOrderStore } from '@/stores/useOrderStore';
@@ -183,7 +183,7 @@ export default function OrdersPage() {
   const pageSizeDropdownRef = useRef<HTMLDivElement>(null);
 
   // Drawer state
-  const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
+  // isCreateDrawerOpen removed - orders are now created from Inbox
   const selectedOrderNumber = searchParams.get('order');
 
   // Get selected order ID for drawer (API mode uses numeric ID)
@@ -350,21 +350,7 @@ export default function OrdersPage() {
     router.push(newUrl, { scroll: false });
   }, [router, searchParams]);
 
-  // Handle create order
-  const handleCreateOrder = useCallback(
-    (newOrder: ExtendedOrder) => {
-      addOrder(newOrder);
-      setIsCreateDrawerOpen(false);
-      toast.success('Order created');
-      openOrder(newOrder.orderNumber);
-    },
-    [addOrder, openOrder]
-  );
-
-  // Get existing order numbers
-  const existingOrderNumbers = useMemo(() => {
-    return extendedOrders.map((o) => o.orderNumber);
-  }, [extendedOrders]);
+  // handleCreateOrder and existingOrderNumbers removed - orders are now created from Inbox
 
   // Calculate metrics (from mock data or API data)
   const metrics = useMemo(() => {
@@ -423,16 +409,17 @@ export default function OrdersPage() {
               Track and manage your customer orders
             </p>
           </div>
-          <button
-            onClick={() => setIsCreateDrawerOpen(true)}
+          <a
+            href="/inbox"
             className="inline-flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl text-white text-sm font-medium transition-all duration-150 ease-out shadow-md hover:shadow-lg hover:brightness-110 hover:-translate-y-[1px]"
             style={{
               background: 'linear-gradient(180deg, #2F5D3E 0%, #285239 100%)',
             }}
+            title="Create orders from conversations in Inbox"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Create Order</span>
-          </button>
+          </a>
         </div>
 
         {/* Metrics Cards */}
@@ -1165,13 +1152,6 @@ export default function OrdersPage() {
         onOrderUpdated={fetchOrdersFromApi}
       />
 
-      {/* Create Order Drawer */}
-      <CreateOrderDrawer
-        isOpen={isCreateDrawerOpen}
-        onClose={() => setIsCreateDrawerOpen(false)}
-        onCreate={handleCreateOrder}
-        existingOrderNumbers={existingOrderNumbers}
-      />
     </div>
   );
 }

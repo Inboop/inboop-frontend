@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Minus, Trash2, Link2 } from 'lucide-react';
+import { X, Plus, Minus, Trash2, Link2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChannelType } from '@/types';
 import { getChannelIcon } from '@/components/shared/ChannelIcons';
-import { PaymentStatus, ExtendedOrder, OrderItem, OrderCustomer, OrderAddress, OrderTotals, OrderTimelineEvent } from '@/lib/orders.mock';
-import { OrderStatus } from './OrderStatusBadge';
+import * as ordersApi from '@/lib/ordersApi';
+import { toast } from '@/stores/useToastStore';
 
 // Initial values for prefilling from conversation
 export interface CreateOrderInitialValues {
-  conversationId?: string;
+  conversationId?: number | string; // Accept both, convert to number internally
+  leadId?: number;
   customer?: {
     name?: string;
     handle?: string;
@@ -23,8 +24,7 @@ export interface CreateOrderInitialValues {
 interface CreateOrderDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (order: ExtendedOrder) => void;
-  existingOrderNumbers: string[];
+  onOrderCreated: (orderId: number) => void; // Changed: returns order ID for opening drawer
   initialValues?: CreateOrderInitialValues;
 }
 
@@ -43,11 +43,12 @@ const CHANNELS: { value: ChannelType; label: string }[] = [
   { value: 'messenger', label: 'Facebook' },
 ];
 
-// Payment status options
-const PAYMENT_OPTIONS: { value: PaymentStatus; label: string }[] = [
-  { value: 'paid', label: 'Paid' },
-  { value: 'unpaid', label: 'Unpaid' },
-  { value: 'cod', label: 'COD' },
+// Payment method options (matching backend enum)
+const PAYMENT_OPTIONS: { value: ordersApi.PaymentMethod | 'NONE'; label: string }[] = [
+  { value: 'NONE', label: 'Not set' },
+  { value: 'COD', label: 'COD' },
+  { value: 'ONLINE', label: 'Online' },
+  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
 ];
 
 // Generate unique ID
@@ -70,23 +71,26 @@ function formatCurrency(amount: number): string {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
-export function CreateOrderDrawer({ isOpen, onClose, onCreate, existingOrderNumbers, initialValues }: CreateOrderDrawerProps) {
+export function CreateOrderDrawer({ isOpen, onClose, onOrderCreated, initialValues }: CreateOrderDrawerProps) {
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Form state
   const [customerName, setCustomerName] = useState('');
   const [customerHandle, setCustomerHandle] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
   const [channel, setChannel] = useState<ChannelType>('instagram');
   const [items, setItems] = useState<FormItem[]>([
     { id: generateId(), name: '', quantity: 1, price: 0 },
   ]);
-  const [address, setAddress] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('unpaid');
+  const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<ordersApi.PaymentMethod | 'NONE'>('NONE');
 
-  // Track if we're linked to a conversation
-  const linkedConversationId = initialValues?.conversationId;
+  // Track if we're linked to a conversation (convert to number if string)
+  const linkedConversationId = initialValues?.conversationId
+    ? typeof initialValues.conversationId === 'string'
+      ? parseInt(initialValues.conversationId, 10)
+      : initialValues.conversationId
+    : undefined;
+  const linkedLeadId = initialValues?.leadId;
 
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -97,8 +101,6 @@ export function CreateOrderDrawer({ isOpen, onClose, onCreate, existingOrderNumb
     if (isOpen && initialValues) {
       if (initialValues.customer?.name) setCustomerName(initialValues.customer.name);
       if (initialValues.customer?.handle) setCustomerHandle(initialValues.customer.handle);
-      if (initialValues.customer?.email) setCustomerEmail(initialValues.customer.email);
-      if (initialValues.customer?.phone) setCustomerPhone(initialValues.customer.phone);
       if (initialValues.channel) setChannel(initialValues.channel);
     }
   }, [isOpen, initialValues]);
@@ -107,12 +109,10 @@ export function CreateOrderDrawer({ isOpen, onClose, onCreate, existingOrderNumb
   const resetForm = useCallback(() => {
     setCustomerName('');
     setCustomerHandle('');
-    setCustomerEmail('');
-    setCustomerPhone('');
     setChannel('instagram');
     setItems([{ id: generateId(), name: '', quantity: 1, price: 0 }]);
-    setAddress('');
-    setPaymentStatus('unpaid');
+    setNotes('');
+    setPaymentMethod('NONE');
     setErrors({});
     setIsSubmitting(false);
   }, []);
@@ -157,12 +157,9 @@ export function CreateOrderDrawer({ isOpen, onClose, onCreate, existingOrderNumb
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!customerName.trim()) {
-      newErrors.customerName = 'Customer name is required';
-    }
-
-    if (!channel) {
-      newErrors.channel = 'Channel is required';
+    // conversationId is required for API
+    if (!linkedConversationId) {
+      newErrors.conversation = 'Must be linked to a conversation';
     }
 
     const validItems = items.filter((item) => item.name.trim());
@@ -174,99 +171,50 @@ export function CreateOrderDrawer({ isOpen, onClose, onCreate, existingOrderNumb
     return Object.keys(newErrors).length === 0;
   };
 
-  // Generate next order number
-  const generateOrderNumber = (): string => {
-    const existingNumbers = existingOrderNumbers
-      .map((num) => {
-        const match = num.match(/ORD-(\d+)/);
-        return match ? parseInt(match[1], 10) : 0;
-      })
-      .filter((n) => n > 0);
-
-    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 1000;
-    return `ORD-${maxNumber + 1}`;
-  };
-
   // Handle submit
   const handleSubmit = async () => {
     if (!validate() || isSubmitting) return;
+    if (!linkedConversationId) return;
 
     setIsSubmitting(true);
 
-    // Simulate brief delay for UX
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    try {
+      // Generate idempotency key for retry safety
+      const idempotencyKey = `create-${linkedConversationId}-${Date.now()}`;
 
-    const now = new Date();
-    const orderNumber = generateOrderNumber();
+      // Build request
+      const request: ordersApi.CreateOrderRequest = {
+        conversationId: linkedConversationId,
+        leadId: linkedLeadId,
+        items: items
+          .filter((item) => item.name.trim())
+          .map((item) => ({
+            name: item.name.trim(),
+            quantity: item.quantity,
+            unitPrice: item.price,
+          })),
+        totalAmount: total,
+        currency: 'INR',
+        notes: notes.trim() || undefined,
+        paymentMethod: paymentMethod !== 'NONE' ? paymentMethod : undefined,
+        idempotencyKey,
+      };
 
-    // Build order items
-    const orderItems: OrderItem[] = items
-      .filter((item) => item.name.trim())
-      .map((item) => ({
-        id: generateId(),
-        name: item.name.trim(),
-        quantity: item.quantity,
-        price: item.price,
-        subtotal: item.quantity * item.price,
-      }));
+      // Call API
+      const createdOrder = await ordersApi.createOrder(request);
 
-    // Build customer
-    const customer: OrderCustomer = {
-      name: customerName.trim(),
-      handle: customerHandle.trim() || customerName.trim().toLowerCase().replace(/\s+/g, '_'),
-      email: customerEmail.trim() || undefined,
-      phone: customerPhone.trim() || undefined,
-      channel,
-    };
+      toast.success('Order created', `Order ${createdOrder.orderNumber} created successfully`);
 
-    // Build address
-    const orderAddress: OrderAddress = {
-      street: address.trim() || 'Address not provided',
-      city: '',
-      state: '',
-      postalCode: '',
-      country: 'India',
-    };
-
-    // Build totals
-    const orderTotals: OrderTotals = {
-      subtotal,
-      shipping: 0,
-      discount: 0,
-      total,
-    };
-
-    // Build timeline
-    const timeline: OrderTimelineEvent[] = [
-      {
-        id: generateId(),
-        status: 'NEW' as OrderStatus,
-        label: 'Order created',
-        description: linkedConversationId ? 'Order created from conversation' : 'Order created manually',
-        timestamp: now,
-      },
-    ];
-
-    // Build order
-    const newOrder: ExtendedOrder = {
-      id: generateId(),
-      orderNumber,
-      status: 'NEW' as OrderStatus,
-      customer,
-      items: orderItems,
-      totals: orderTotals,
-      address: orderAddress,
-      timeline,
-      paymentMethod: paymentStatus === 'cod' ? 'COD' : 'Pending',
-      paymentStatus,
-      conversationId: linkedConversationId || null,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    onCreate(newOrder);
-    resetForm();
-    setIsSubmitting(false);
+      resetForm();
+      onOrderCreated(createdOrder.id);
+    } catch (error) {
+      console.error('Failed to create order:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to create order';
+      toast.error('Failed to create order', errorMsg);
+      setErrors({ submit: errorMsg });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Handle close
@@ -360,82 +308,49 @@ export function CreateOrderDrawer({ isOpen, onClose, onCreate, existingOrderNumb
 
         {/* Content - Scrollable */}
         <div className="flex-1 overflow-y-auto">
-          {/* Customer Section */}
-          <div className="px-6 py-5 border-b border-gray-100">
-            <SectionHeader title="Customer" required />
-
-            <div className="space-y-3">
-              {/* Name */}
-              <div>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Customer name"
-                  className={cn(
-                    'w-full px-4 py-2.5 bg-gray-50 border rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E] transition-all',
-                    errors.customerName ? 'border-red-300 bg-red-50/50' : 'border-gray-200'
+          {/* Customer Info (read-only, from conversation) */}
+          {(customerName || customerHandle) && (
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-semibold text-gray-600">
+                    {(customerName || customerHandle || 'U')
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {customerName || 'Unknown'}
+                  </p>
+                  {customerHandle && (
+                    <p className="text-xs text-gray-500 truncate">@{customerHandle}</p>
                   )}
-                />
-                {errors.customerName && (
-                  <p className="mt-1 text-xs text-red-500">{errors.customerName}</p>
+                </div>
+                {channel && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg border border-gray-200">
+                    {getChannelIcon(channel, 14)}
+                    <span className="text-xs text-gray-600 capitalize">{channel}</span>
+                  </div>
                 )}
               </div>
-
-              {/* Handle */}
-              <input
-                type="text"
-                value={customerHandle}
-                onChange={(e) => setCustomerHandle(e.target.value)}
-                placeholder="Handle (optional)"
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E] transition-all"
-              />
-
-              {/* Email & Phone row */}
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="email"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="Email (optional)"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E] transition-all"
-                />
-                <input
-                  type="tel"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="Phone (optional)"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E] transition-all"
-                />
-              </div>
             </div>
-          </div>
+          )}
 
-          {/* Channel Section */}
-          <div className="px-6 py-5 border-b border-gray-100">
-            <SectionHeader title="Channel" required />
-
-            <div className="flex gap-2">
-              {CHANNELS.map((ch) => (
-                <button
-                  key={ch.value}
-                  onClick={() => setChannel(ch.value)}
-                  className={cn(
-                    'flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 transition-all',
-                    channel === ch.value
-                      ? 'border-gray-900 bg-gray-50'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  )}
-                >
-                  {getChannelIcon(ch.value, 16)}
-                  <span className="text-sm font-medium text-gray-700">{ch.label}</span>
-                </button>
-              ))}
+          {/* Error banner */}
+          {errors.conversation && (
+            <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-sm text-red-600">{errors.conversation}</p>
             </div>
-            {errors.channel && (
-              <p className="mt-2 text-xs text-red-500">{errors.channel}</p>
-            )}
-          </div>
+          )}
+          {errors.submit && (
+            <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-sm text-red-600">{errors.submit}</p>
+            </div>
+          )}
 
           {/* Items Section */}
           <div className="px-6 py-5 border-b border-gray-100">
@@ -544,31 +459,31 @@ export function CreateOrderDrawer({ isOpen, onClose, onCreate, existingOrderNumb
             </div>
           </div>
 
-          {/* Shipping Section */}
+          {/* Notes Section */}
           <div className="px-6 py-5 border-b border-gray-100">
-            <SectionHeader title="Shipping address" />
+            <SectionHeader title="Notes" />
 
             <textarea
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Enter shipping address (optional)"
-              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add order notes (optional)"
+              rows={2}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2F5D3E]/20 focus:border-[#2F5D3E] transition-all resize-none"
             />
           </div>
 
-          {/* Payment Section */}
+          {/* Payment Method Section */}
           <div className="px-6 py-5">
-            <SectionHeader title="Payment" required />
+            <SectionHeader title="Payment method" />
 
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {PAYMENT_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
-                  onClick={() => setPaymentStatus(opt.value)}
+                  onClick={() => setPaymentMethod(opt.value)}
                   className={cn(
-                    'flex-1 py-2.5 px-3 rounded-xl border-2 text-sm font-medium transition-all',
-                    paymentStatus === opt.value
+                    'py-2.5 px-3 rounded-xl border-2 text-sm font-medium transition-all',
+                    paymentMethod === opt.value
                       ? 'border-gray-900 bg-gray-50 text-gray-900'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                   )}
@@ -578,11 +493,9 @@ export function CreateOrderDrawer({ isOpen, onClose, onCreate, existingOrderNumb
               ))}
             </div>
 
-            {paymentStatus === 'unpaid' && (
-              <p className="mt-3 text-xs text-gray-500 bg-amber-50 px-3 py-2 rounded-lg">
-                You can send a payment link from Inbox later
-              </p>
-            )}
+            <p className="mt-3 text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-lg">
+              Payment status will be set to &quot;Unpaid&quot; by default
+            </p>
           </div>
         </div>
 
@@ -598,15 +511,16 @@ export function CreateOrderDrawer({ isOpen, onClose, onCreate, existingOrderNumb
             </button>
             <button
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !linkedConversationId}
               className={cn(
-                'flex-1 py-2.5 rounded-xl text-white text-sm font-medium transition-all',
-                isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:brightness-110'
+                'flex-1 py-2.5 rounded-xl text-white text-sm font-medium transition-all flex items-center justify-center gap-2',
+                isSubmitting || !linkedConversationId ? 'opacity-50 cursor-not-allowed' : 'hover:brightness-110'
               )}
               style={{
                 background: 'linear-gradient(180deg, #2F5D3E 0%, #285239 100%)',
               }}
             >
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {isSubmitting ? 'Creating...' : 'Create order'}
             </button>
           </div>

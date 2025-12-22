@@ -16,7 +16,6 @@ import { mockMessages } from '@/lib/mockData';
 import { mockExtendedOrders, ExtendedOrder } from '@/lib/orders.mock';
 import { LeadStatus } from '@/types';
 import { SkeletonConversation, SkeletonMessage, SkeletonDetailPanel, Skeleton } from '@/components/ui/skeleton';
-import { toast } from '@/stores/useToastStore';
 
 // Deep clone mock orders for state management
 const cloneMockOrders = (): ExtendedOrder[] => {
@@ -36,7 +35,7 @@ export default function InboxPage() {
   const { user } = useAuth();
   const { selectedConversationId, setSelectedConversationId } = useUIStore();
   const { conversations, setConversationVIP, isLoading, fetchConversations } = useConversationStore();
-  const { orders, isLoading: ordersLoading, fetchOrders, addOrder } = useOrderStore();
+  const { isLoading: ordersLoading, fetchOrders } = useOrderStore();
 
   const isAdmin = isAdminUser(user?.email);
 
@@ -76,11 +75,6 @@ export default function InboxPage() {
   // Get messages for selected conversation (mock for admin, empty for others)
   const messages = isAdmin && selectedConversationId ? mockMessages[selectedConversationId] || [] : [];
 
-  // Get existing order numbers for ID generation
-  const existingOrderNumbers = useMemo(() => {
-    return orders.map((o) => o.orderNumber);
-  }, [orders]);
-
   // Initial values for create order drawer based on selected conversation
   const createOrderInitialValues = useMemo<CreateOrderInitialValues | undefined>(() => {
     if (!selectedConversation) return undefined;
@@ -112,14 +106,12 @@ export default function InboxPage() {
     setIsCreateOrderDrawerOpen(true);
   }, []);
 
-  // Handle order creation
-  const handleOrderCreated = useCallback((newOrder: ExtendedOrder) => {
-    addOrder(newOrder);
+  // Handle order creation - now receives orderId from API
+  const handleOrderCreated = useCallback((orderId: number) => {
     setIsCreateOrderDrawerOpen(false);
-    toast.success('Order created');
-    // Navigate to orders page with the new order selected
-    window.location.href = `/orders?order=${newOrder.orderNumber}`;
-  }, [addOrder]);
+    // Navigate to orders page with the new order
+    router.push(`/orders?orderId=${orderId}`);
+  }, [router]);
 
   // Loading state
   if (isLoading) {
@@ -230,8 +222,7 @@ export default function InboxPage() {
       <CreateOrderDrawer
         isOpen={isCreateOrderDrawerOpen}
         onClose={() => setIsCreateOrderDrawerOpen(false)}
-        onCreate={handleOrderCreated}
-        existingOrderNumbers={existingOrderNumbers}
+        onOrderCreated={handleOrderCreated}
         initialValues={createOrderInitialValues}
       />
     </>
