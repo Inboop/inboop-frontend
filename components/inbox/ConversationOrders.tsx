@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ShoppingCart, ChevronRight, Package, RefreshCw, Plus } from 'lucide-react';
+import { ShoppingCart, ChevronRight, Package, RefreshCw, Plus, Star } from 'lucide-react';
 import { Conversation } from '@/types';
 import * as ordersApi from '@/lib/ordersApi';
 import { OrderStatusBadge, OrderStatus } from '@/components/orders/OrderStatusBadge';
@@ -244,48 +244,79 @@ export function ConversationOrders({ conversation }: ConversationOrdersProps) {
               </div>
             </div>
 
-            {/* Orders List (compact) */}
+            {/* Orders List (compact) - sorted: primary first, then by createdAt desc */}
             <div className="rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
-              {orders.slice(0, 5).map((order) => (
-                <button
-                  key={order.id}
-                  onClick={() => handleOrderClick(order.id)}
-                  className="w-full flex items-center gap-3 p-3 bg-white hover:bg-gray-50 transition-colors text-left group"
-                >
-                  {/* Order Icon */}
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-gray-200 transition-colors">
-                    <Package className="w-4 h-4 text-gray-500" />
-                  </div>
+              {[...orders]
+                .sort((a, b) => {
+                  // Primary converting order first
+                  if (a.isPrimaryConvertingOrder && !b.isPrimaryConvertingOrder) return -1;
+                  if (!a.isPrimaryConvertingOrder && b.isPrimaryConvertingOrder) return 1;
+                  // Then by createdAt desc
+                  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                })
+                .slice(0, 5)
+                .map((order) => {
+                  const isPrimary = order.isPrimaryConvertingOrder === true;
+                  const isAdditional = order.leadId != null && !isPrimary;
 
-                  {/* Order Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900 truncate">
-                        {order.orderNumber}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <OrderStatusBadge
-                        status={order.orderStatus as OrderStatus}
-                        size="small"
-                      />
-                    </div>
-                  </div>
+                  return (
+                    <button
+                      key={order.id}
+                      onClick={() => handleOrderClick(order.id)}
+                      className="w-full flex items-center gap-3 p-3 bg-white hover:bg-gray-50 transition-colors text-left group"
+                    >
+                      {/* Order Icon - highlight primary */}
+                      <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:opacity-90 transition-colors",
+                        isPrimary ? "bg-violet-100" : "bg-gray-100 group-hover:bg-gray-200"
+                      )}>
+                        {isPrimary ? (
+                          <Star className="w-4 h-4 text-violet-600" />
+                        ) : (
+                          <Package className="w-4 h-4 text-gray-500" />
+                        )}
+                      </div>
 
-                  {/* Amount & Date */}
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-medium text-gray-900">
-                      {formatCurrency(order.totalAmount || 0, order.currency)}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {formatRelativeDate(order.createdAt)}
-                    </p>
-                  </div>
+                      {/* Order Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900 truncate">
+                            {order.orderNumber}
+                          </span>
+                          {isPrimary && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-700">
+                              Primary
+                            </span>
+                          )}
+                          {isAdditional && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">
+                              Additional
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <OrderStatusBadge
+                            status={order.orderStatus as OrderStatus}
+                            size="small"
+                          />
+                        </div>
+                      </div>
 
-                  {/* Chevron */}
-                  <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
-              ))}
+                      {/* Amount & Date */}
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-medium text-gray-900">
+                          {formatCurrency(order.totalAmount || 0, order.currency)}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {formatRelativeDate(order.createdAt)}
+                        </p>
+                      </div>
+
+                      {/* Chevron */}
+                      <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  );
+                })}
             </div>
 
             {/* View All Link (if more than 5 orders) */}

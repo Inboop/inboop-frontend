@@ -206,6 +206,11 @@ export interface Lead {
   // Related entities
   linkedOrders?: string[];
 
+  // Conversion tracking
+  convertedOrderId?: number;
+  convertedOrderNumber?: string;
+  convertedAt?: Date;
+
   // Soft delete / archive
   archivedAt?: Date | null;
   deletedAt?: Date | null;

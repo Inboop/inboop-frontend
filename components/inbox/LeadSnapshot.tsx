@@ -15,6 +15,8 @@ import {
   X,
   ArrowLeft,
   User,
+  ArrowRightCircle,
+  ShoppingBag,
 } from "lucide-react";
 import { Facebook } from "lucide-react";
 import { Conversation, ConversationStatus, LeadStatus, IntentType } from "@/types";
@@ -408,24 +410,49 @@ export function LeadSnapshot({
             <label className="text-xs text-gray-500 uppercase tracking-wide mb-1.5 block">
               Status
             </label>
-            <div className="relative">
-              <select
-                value={status}
-                onChange={(e) => {
-                  const newStatus = e.target.value as LeadStatus;
-                  setStatus(newStatus);
-                  onStatusChange?.(newStatus);
-                }}
-                className="w-full px-3 py-2 bg-gray-50 text-gray-900 border border-gray-300 rounded-lg text-sm appearance-none cursor-pointer hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-[#2F5D3E] focus:border-[#2F5D3E]"
-              >
-                <option value="New">New</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Qualified">Qualified</option>
-                <option value="Converted">Converted</option>
-                <option value="Lost">Lost</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+            {/* Show converted badge if lead is converted */}
+            {lead.status === 'Converted' && lead.convertedOrderNumber ? (
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-sm font-medium">
+                  <ArrowRightCircle className="w-3.5 h-3.5" />
+                  Converted
+                </div>
+                <button
+                  onClick={() => router.push(`/orders?selected=${lead.convertedOrderId}`)}
+                  className="w-full flex items-center gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors group"
+                >
+                  <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="text-xs text-gray-500">Converted by</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      Order {lead.convertedOrderNumber}
+                    </p>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-gray-600 flex-shrink-0" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <select
+                  value={status}
+                  onChange={(e) => {
+                    const newStatus = e.target.value as LeadStatus;
+                    setStatus(newStatus);
+                    onStatusChange?.(newStatus);
+                  }}
+                  className="w-full px-3 py-2 bg-gray-50 text-gray-900 border border-gray-300 rounded-lg text-sm appearance-none cursor-pointer hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-[#2F5D3E] focus:border-[#2F5D3E]"
+                >
+                  <option value="New">New</option>
+                  <option value="Contacted">Contacted</option>
+                  <option value="Qualified">Qualified</option>
+                  <option value="Converted">Converted</option>
+                  <option value="Lost">Lost</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+            )}
           </div>
         )}
 

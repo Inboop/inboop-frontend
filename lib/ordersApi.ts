@@ -26,6 +26,9 @@ export interface OrderListItem {
   assignedToUserName: string | null;
   createdAt: string;
   lastUpdatedAt: string;
+  // Lead relationship - for identifying primary vs secondary orders
+  leadId: number | null;
+  isPrimaryConvertingOrder: boolean | null;
 }
 
 export interface PagedOrderResponse {
@@ -70,9 +73,16 @@ export interface OrderTimelineEvent {
   createdAt: string;
 }
 
+export interface LeadConversionInfo {
+  isConvertingOrder: boolean;
+  isPrimaryConvertingOrder: boolean;
+  convertedLeadId: number | null;
+}
+
 export interface OrderDetail extends OrderListItem {
   conversationId: number | null;
   leadId: number | null;
+  leadConversionInfo: LeadConversionInfo | null;
   items: OrderItem[];
   shippingAddress: ShippingAddress | null;
   tracking: TrackingInfo | null;

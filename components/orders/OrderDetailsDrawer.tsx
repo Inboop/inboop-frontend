@@ -214,7 +214,7 @@ function PaymentStatusBadge({
   );
 }
 
-// Terminal State Banner
+// Terminal State Banner with "locked" message
 function TerminalStateBanner({
   status,
   paymentStatus,
@@ -230,36 +230,48 @@ function TerminalStateBanner({
   return (
     <div
       className={cn(
-        'mx-4 mt-4 p-3 rounded-xl flex items-center gap-3',
-        isDelivered ? 'bg-emerald-50 border border-emerald-100' : 'bg-red-50 border border-red-100'
+        'mx-4 mt-4 p-4 rounded-xl',
+        isDelivered ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'
       )}
     >
-      {isDelivered ? (
-        <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-      ) : (
-        <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-      )}
-      <div className="flex-1 min-w-0">
-        <p className={cn('text-sm font-medium', isDelivered ? 'text-emerald-800' : 'text-red-800')}>
-          {isDelivered ? 'Order Delivered' : 'Order Cancelled'}
-        </p>
-        <p className={cn('text-xs', isDelivered ? 'text-emerald-600' : 'text-red-600')}>
-          {isDelivered
-            ? paymentStatus === 'PAID'
-              ? 'Successfully completed and paid'
-              : 'Successfully delivered'
-            : 'This order has been cancelled'}
-        </p>
+      <div className="flex items-start gap-3">
+        {isDelivered ? (
+          <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+            <CheckCircle className="w-5 h-5 text-emerald-600" />
+          </div>
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <XCircle className="w-5 h-5 text-red-500" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className={cn('text-sm font-semibold', isDelivered ? 'text-emerald-800' : 'text-red-800')}>
+            {isDelivered ? 'Order Delivered' : 'Order Cancelled'}
+          </p>
+          <p className={cn('text-xs mt-0.5', isDelivered ? 'text-emerald-600' : 'text-red-600')}>
+            {isDelivered
+              ? paymentStatus === 'PAID'
+                ? 'Successfully completed and paid'
+                : 'Successfully delivered'
+              : 'This order has been cancelled'}
+          </p>
+          <p className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
+            <Ban className="w-3 h-3" />
+            This order is complete and locked.
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
-// Confirmation Modal Component
+// Confirmation Modal Component with order number and irreversibility warning
 function ConfirmationModal({
   isOpen,
   title,
+  orderNumber,
   message,
+  warningText,
   confirmLabel,
   confirmVariant = 'danger',
   isLoading,
@@ -268,14 +280,24 @@ function ConfirmationModal({
 }: {
   isOpen: boolean;
   title: string;
+  orderNumber?: string;
   message: string;
+  warningText?: string;
   confirmLabel: string;
-  confirmVariant?: 'danger' | 'primary';
+  confirmVariant?: 'danger' | 'primary' | 'success';
   isLoading: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   if (!isOpen) return null;
+
+  const iconBgColor = confirmVariant === 'success' ? 'bg-emerald-100' : confirmVariant === 'danger' ? 'bg-red-100' : 'bg-blue-100';
+  const iconColor = confirmVariant === 'success' ? 'text-emerald-600' : confirmVariant === 'danger' ? 'text-red-600' : 'text-blue-600';
+  const buttonColor = confirmVariant === 'success'
+    ? 'bg-emerald-600 hover:bg-emerald-700'
+    : confirmVariant === 'danger'
+      ? 'bg-red-600 hover:bg-red-700'
+      : 'bg-[#2F5D3E] hover:bg-[#285239]';
 
   return (
     <>
@@ -288,22 +310,25 @@ function ConfirmationModal({
           {/* Header */}
           <div className="p-5 pb-4">
             <div className="flex items-start gap-4">
-              <div
-                className={cn(
-                  'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0',
-                  confirmVariant === 'danger' ? 'bg-red-100' : 'bg-blue-100'
+              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', iconBgColor)}>
+                {confirmVariant === 'success' ? (
+                  <CheckCircle className={cn('w-5 h-5', iconColor)} />
+                ) : (
+                  <AlertTriangle className={cn('w-5 h-5', iconColor)} />
                 )}
-              >
-                <AlertTriangle
-                  className={cn(
-                    'w-5 h-5',
-                    confirmVariant === 'danger' ? 'text-red-600' : 'text-blue-600'
-                  )}
-                />
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-                <p className="text-sm text-gray-500 mt-1">{message}</p>
+                {orderNumber && (
+                  <p className="text-xs text-gray-400 font-mono mt-0.5">{orderNumber}</p>
+                )}
+                <p className="text-sm text-gray-500 mt-2">{message}</p>
+                {warningText && (
+                  <p className="text-xs text-amber-600 mt-2 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                    {warningText}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -315,16 +340,14 @@ function ConfirmationModal({
               disabled={isLoading}
               className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
             >
-              Cancel
+              Go Back
             </button>
             <button
               onClick={onConfirm}
               disabled={isLoading}
               className={cn(
                 'flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2',
-                confirmVariant === 'danger'
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-[#2F5D3E] hover:bg-[#285239]'
+                buttonColor
               )}
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -780,7 +803,7 @@ export function OrderDetailsDrawer({
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
-    action: 'cancel' | 'refund' | null;
+    action: 'cancel' | 'refund' | 'deliver' | null;
   }>({ isOpen: false, action: null });
 
   // Edit modal states
@@ -904,8 +927,10 @@ export function OrderDetailsDrawer({
   const handleShip = () =>
     handleAction('ship', () => ordersApi.shipOrder(order!.id), 'Order marked as shipped');
 
-  const handleDeliver = () =>
-    handleAction('deliver', () => ordersApi.deliverOrder(order!.id), 'Order marked as delivered');
+  const handleDeliver = async () => {
+    setConfirmModal({ isOpen: false, action: null });
+    await handleAction('deliver', () => ordersApi.deliverOrder(order!.id), 'Order marked as delivered');
+  };
 
   const handleCancel = async () => {
     setConfirmModal({ isOpen: false, action: null });
@@ -967,11 +992,16 @@ export function OrderDetailsDrawer({
   const isTerminal =
     order?.orderStatus === 'DELIVERED' || order?.orderStatus === 'CANCELLED';
 
-  // Get primary action
+  // Get primary action - Deliver uses confirmation modal since it's terminal
   const getPrimaryAction = () => {
-    if (canConfirm) return { action: handleConfirm, label: 'Confirm Order', icon: Check };
-    if (canShip) return { action: handleShip, label: 'Mark Shipped', icon: Truck };
-    if (canDeliver) return { action: handleDeliver, label: 'Mark Delivered', icon: CheckCircle };
+    if (canConfirm) return { action: handleConfirm, label: 'Confirm Order', icon: Check, needsConfirm: false };
+    if (canShip) return { action: handleShip, label: 'Mark Shipped', icon: Truck, needsConfirm: false };
+    if (canDeliver) return {
+      action: () => setConfirmModal({ isOpen: true, action: 'deliver' }),
+      label: 'Mark Delivered',
+      icon: CheckCircle,
+      needsConfirm: true
+    };
     return null;
   };
 
@@ -1071,10 +1101,36 @@ export function OrderDetailsDrawer({
                     </button>
                   </div>
                   {/* Status Badges */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <OrderStatusBadge status={order.orderStatus as OrderStatus} />
                     {order.paymentStatus && (
                       <PaymentStatusBadge status={order.paymentStatus} />
+                    )}
+                    {/* Primary converting order badge */}
+                    {order.leadConversionInfo?.isPrimaryConvertingOrder && order.leadId && (
+                      <button
+                        onClick={() => {
+                          window.location.href = `/leads?selected=${order.leadId}`;
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-violet-50 text-violet-600 border border-violet-200 rounded-lg text-xs font-medium hover:bg-violet-100 transition-colors"
+                        title="This order converted a lead"
+                      >
+                        <Bot className="w-3 h-3" />
+                        Converted Lead
+                      </button>
+                    )}
+                    {/* Secondary order badge (linked to lead but not the converting order) */}
+                    {order.leadId && !order.leadConversionInfo?.isPrimaryConvertingOrder && (
+                      <button
+                        onClick={() => {
+                          window.location.href = `/leads?selected=${order.leadId}`;
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-50 text-gray-500 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors"
+                        title="Additional order for this lead"
+                      >
+                        <Package className="w-3 h-3" />
+                        Additional Order
+                      </button>
                     )}
                   </div>
                 </div>
@@ -1115,6 +1171,32 @@ export function OrderDetailsDrawer({
               status={order.orderStatus}
               paymentStatus={order.paymentStatus}
             />
+
+            {/* Lead Context Banner - shows only for orders linked to leads */}
+            {order.leadId && !isTerminal && (
+              <div className={cn(
+                "mx-4 mt-3 p-3 rounded-xl flex items-center gap-2.5 text-xs",
+                order.leadConversionInfo?.isPrimaryConvertingOrder
+                  ? "bg-violet-50 border border-violet-100"
+                  : "bg-gray-50 border border-gray-100"
+              )}>
+                {order.leadConversionInfo?.isPrimaryConvertingOrder ? (
+                  <>
+                    <Bot className="w-4 h-4 text-violet-500 flex-shrink-0" />
+                    <span className="text-violet-700">
+                      This order converted the lead. Changes here may reflect on the lead record.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Package className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span className="text-gray-600">
+                      Additional order for this lead. The lead was converted by a different order.
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Main Content - Two Column Layout */}
             <div className="flex-1 overflow-hidden flex">
@@ -1438,22 +1520,76 @@ export function OrderDetailsDrawer({
                 {/* Assignee Section - At Top */}
                 <div className="p-4 border-b border-gray-100 bg-white">
                   <SectionHeader title="Assigned To" />
-                  <div className="relative">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowAssignDropdown(!showAssignDropdown);
-                      }}
-                      disabled={!!actionLoading}
-                      className={cn(
-                        'w-full flex items-center gap-3 p-3 rounded-xl text-sm transition-all',
-                        order.assignedToUserName
-                          ? 'bg-gray-50 hover:bg-gray-100'
-                          : 'bg-amber-50 border border-dashed border-amber-200 hover:bg-amber-100'
+                  {!isTerminal ? (
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowAssignDropdown(!showAssignDropdown);
+                        }}
+                        disabled={!!actionLoading}
+                        className={cn(
+                          'w-full flex items-center gap-3 p-3 rounded-xl text-sm transition-all',
+                          order.assignedToUserName
+                            ? 'bg-gray-50 hover:bg-gray-100'
+                            : 'bg-amber-50 border border-dashed border-amber-200 hover:bg-amber-100'
+                        )}
+                      >
+                        {order.assignedToUserName ? (
+                          <>
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-xs font-semibold text-white flex-shrink-0">
+                              {order.assignedToUserName
+                                .split(' ')
+                                .map((n) => n[0])
+                                .join('')
+                                .toUpperCase()
+                                .slice(0, 2)}
+                            </div>
+                            <span className="text-gray-900 font-medium truncate flex-1 text-left">
+                              {order.assignedToUserName}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                              <User className="w-4 h-4 text-amber-600" />
+                            </div>
+                            <span className="text-amber-700 font-medium flex-1 text-left">
+                              Unassigned
+                            </span>
+                          </>
+                        )}
+                        {actionLoading === 'assign' ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-gray-400 flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        )}
+                      </button>
+
+                      {showAssignDropdown && (
+                        <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                          <button
+                            onClick={() => handleAssign(null)}
+                            className="w-full px-4 py-3 text-sm text-left flex items-center gap-3 hover:bg-gray-50 transition-colors"
+                          >
+                            <UserMinus className="w-4 h-4 text-gray-400" />
+                            <span>Unassign</span>
+                          </button>
+                          <button
+                            onClick={() => handleAssign(1)}
+                            className="w-full px-4 py-3 text-sm text-left flex items-center gap-3 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                          >
+                            <User className="w-4 h-4 text-gray-400" />
+                            <span>Assign to me</span>
+                          </button>
+                        </div>
                       )}
-                    >
+                    </div>
+                  ) : (
+                    /* Read-only assignee for terminal orders */
+                    <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl">
                       {order.assignedToUserName ? (
-                        <>
+                        <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-xs font-semibold text-white flex-shrink-0">
                             {order.assignedToUserName
                               .split(' ')
@@ -1462,46 +1598,20 @@ export function OrderDetailsDrawer({
                               .toUpperCase()
                               .slice(0, 2)}
                           </div>
-                          <span className="text-gray-900 font-medium truncate flex-1 text-left">
+                          <span className="text-gray-700 font-medium truncate">
                             {order.assignedToUserName}
                           </span>
-                        </>
+                        </div>
                       ) : (
-                        <>
-                          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                            <User className="w-4 h-4 text-amber-600" />
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                            <User className="w-4 h-4 text-gray-400" />
                           </div>
-                          <span className="text-amber-700 font-medium flex-1 text-left">
-                            Unassigned
-                          </span>
-                        </>
+                          <span className="text-gray-500 font-medium">Unassigned</span>
+                        </div>
                       )}
-                      {actionLoading === 'assign' ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-gray-400 flex-shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      )}
-                    </button>
-
-                    {showAssignDropdown && (
-                      <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
-                        <button
-                          onClick={() => handleAssign(null)}
-                          className="w-full px-4 py-3 text-sm text-left flex items-center gap-3 hover:bg-gray-50 transition-colors"
-                        >
-                          <UserMinus className="w-4 h-4 text-gray-400" />
-                          <span>Unassign</span>
-                        </button>
-                        <button
-                          onClick={() => handleAssign(1)}
-                          className="w-full px-4 py-3 text-sm text-left flex items-center gap-3 hover:bg-gray-50 transition-colors border-t border-gray-100"
-                        >
-                          <User className="w-4 h-4 text-gray-400" />
-                          <span>Assign to me</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -1544,74 +1654,106 @@ export function OrderDetailsDrawer({
                   )}
 
                   {/* Payment Section */}
-                  <div>
-                    <SectionHeader title="Payment" />
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowPaymentDropdown(!showPaymentDropdown);
-                        }}
-                        disabled={!!actionLoading}
-                        className="w-full flex items-center justify-between gap-2 p-3 bg-white border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
-                      >
-                        <span className="flex items-center gap-2">
+                  {!isTerminal && (
+                    <div>
+                      <SectionHeader title="Payment" />
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowPaymentDropdown(!showPaymentDropdown);
+                          }}
+                          disabled={!!actionLoading}
+                          className="w-full flex items-center justify-between gap-2 p-3 bg-white border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+                        >
+                          <span className="flex items-center gap-2">
+                            {order.paymentStatus ? (
+                              <PaymentStatusBadge status={order.paymentStatus} size="small" />
+                            ) : (
+                              <span className="text-gray-500">Unknown</span>
+                            )}
+                          </span>
+                          {actionLoading === 'payment' ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                          )}
+                        </button>
+
+                        {showPaymentDropdown && (
+                          <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                            {(['UNPAID', 'PAID', 'REFUNDED'] as ordersApi.PaymentStatus[]).map(
+                              (status) => (
+                                <button
+                                  key={status}
+                                  onClick={() => handlePaymentStatus(status)}
+                                  disabled={order.paymentStatus === status}
+                                  className={cn(
+                                    'w-full px-4 py-2.5 text-sm text-left flex items-center gap-3 hover:bg-gray-50 transition-colors',
+                                    order.paymentStatus === status && 'bg-gray-50 cursor-default'
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      'w-2 h-2 rounded-full',
+                                      PAYMENT_STATUS_CONFIG[status].dotColor
+                                    )}
+                                  />
+                                  <span className="flex-1">{PAYMENT_STATUS_CONFIG[status].label}</span>
+                                  {order.paymentStatus === status && (
+                                    <Check className="w-4 h-4 text-gray-400" />
+                                  )}
+                                </button>
+                              )
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Refund Button - only show when payment is PAID */}
+                      {canRefund && (
+                        <ActionButton
+                          onClick={() => setConfirmModal({ isOpen: true, action: 'refund' })}
+                          disabled={!!actionLoading}
+                          variant="default"
+                          className="w-full mt-2"
+                        >
+                          <DollarSign className="w-4 h-4" />
+                          Issue Refund
+                        </ActionButton>
+                      )}
+
+                      {/* Show disabled refund button with tooltip when not paid */}
+                      {!canRefund && order.paymentStatus !== 'REFUNDED' && (
+                        <ActionButton
+                          onClick={() => {}}
+                          disabled={true}
+                          disabledReason="Refund is only available for paid orders"
+                          variant="default"
+                          className="w-full mt-2"
+                        >
+                          <DollarSign className="w-4 h-4" />
+                          Issue Refund
+                        </ActionButton>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Payment Status for Terminal Orders (read-only) */}
+                  {isTerminal && (
+                    <div>
+                      <SectionHeader title="Payment" />
+                      <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl">
+                        <div className="flex items-center gap-2">
                           {order.paymentStatus ? (
                             <PaymentStatusBadge status={order.paymentStatus} size="small" />
                           ) : (
-                            <span className="text-gray-500">Unknown</span>
-                          )}
-                        </span>
-                        {actionLoading === 'payment' ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
-                        )}
-                      </button>
-
-                      {showPaymentDropdown && (
-                        <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
-                          {(['UNPAID', 'PAID', 'REFUNDED'] as ordersApi.PaymentStatus[]).map(
-                            (status) => (
-                              <button
-                                key={status}
-                                onClick={() => handlePaymentStatus(status)}
-                                disabled={order.paymentStatus === status}
-                                className={cn(
-                                  'w-full px-4 py-2.5 text-sm text-left flex items-center gap-3 hover:bg-gray-50 transition-colors',
-                                  order.paymentStatus === status && 'bg-gray-50 cursor-default'
-                                )}
-                              >
-                                <span
-                                  className={cn(
-                                    'w-2 h-2 rounded-full',
-                                    PAYMENT_STATUS_CONFIG[status].dotColor
-                                  )}
-                                />
-                                <span className="flex-1">{PAYMENT_STATUS_CONFIG[status].label}</span>
-                                {order.paymentStatus === status && (
-                                  <Check className="w-4 h-4 text-gray-400" />
-                                )}
-                              </button>
-                            )
+                            <span className="text-gray-500 text-sm">Unknown</span>
                           )}
                         </div>
-                      )}
+                      </div>
                     </div>
-
-                    {/* Refund Button */}
-                    {canRefund && (
-                      <ActionButton
-                        onClick={() => setConfirmModal({ isOpen: true, action: 'refund' })}
-                        disabled={!!actionLoading}
-                        variant="default"
-                        className="w-full mt-2"
-                      >
-                        <DollarSign className="w-4 h-4" />
-                        Issue Refund
-                      </ActionButton>
-                    )}
-                  </div>
+                  )}
 
                   {/* Terminal State Message */}
                   {isTerminal && !canCancel && (
@@ -1642,7 +1784,9 @@ export function OrderDetailsDrawer({
       <ConfirmationModal
         isOpen={confirmModal.isOpen && confirmModal.action === 'cancel'}
         title="Cancel Order"
-        message="Are you sure you want to cancel this order? This action cannot be undone."
+        orderNumber={order?.orderNumber}
+        message="Are you sure you want to cancel this order?"
+        warningText="This action cannot be undone. The order will be permanently cancelled."
         confirmLabel="Cancel Order"
         confirmVariant="danger"
         isLoading={actionLoading === 'cancel'}
@@ -1651,9 +1795,24 @@ export function OrderDetailsDrawer({
       />
 
       <ConfirmationModal
+        isOpen={confirmModal.isOpen && confirmModal.action === 'deliver'}
+        title="Mark as Delivered"
+        orderNumber={order?.orderNumber}
+        message="Confirm that this order has been successfully delivered to the customer."
+        warningText="This action is irreversible. The order will be locked after delivery."
+        confirmLabel="Confirm Delivery"
+        confirmVariant="success"
+        isLoading={actionLoading === 'deliver'}
+        onConfirm={handleDeliver}
+        onCancel={() => setConfirmModal({ isOpen: false, action: null })}
+      />
+
+      <ConfirmationModal
         isOpen={confirmModal.isOpen && confirmModal.action === 'refund'}
         title="Issue Refund"
+        orderNumber={order?.orderNumber}
         message="Are you sure you want to refund this order? The payment will be returned to the customer."
+        warningText="This action cannot be undone."
         confirmLabel="Issue Refund"
         confirmVariant="danger"
         isLoading={actionLoading === 'refund'}
