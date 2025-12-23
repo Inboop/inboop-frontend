@@ -80,6 +80,13 @@ interface IntegrationStatusResponse {
     businessSuiteUrl?: string;
     pageCreateUrl?: string;
   };
+  apiError?: {
+    code?: number;
+    subcode?: number;
+    type?: string;
+    message?: string;
+    fbtraceId?: string;
+  };
 }
 
 // Map reason codes to user-friendly messages
@@ -909,16 +916,42 @@ export default function SettingsPage() {
                         </button>
                       )}
 
-                      {/* BLOCKED: Show Fix Connection button for all blocked reasons except ADMIN_COOLDOWN */}
+                      {/* BLOCKED: Show buttons based on reason */}
                       {instagramStatus?.status === 'BLOCKED' && instagramStatus.reason !== 'ADMIN_COOLDOWN' && (
-                        <button
-                          onClick={openFixWizard}
-                          className="px-4 py-2 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors flex items-center gap-2"
-                          style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
-                        >
-                          Fix Connection
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {/* Reconnect button for OAuth-retry-eligible reasons */}
+                          {['TOKEN_EXPIRED', 'MISSING_PERMISSIONS', 'API_ERROR', 'OWNERSHIP_MISMATCH'].includes(instagramStatus.reason || '') && (
+                            <button
+                              onClick={handleConnectInstagram}
+                              disabled={isConnectingInstagram}
+                              className="px-4 py-2 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors flex items-center gap-2 disabled:opacity-50"
+                              style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
+                            >
+                              {isConnectingInstagram ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Connecting...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="w-4 h-4" />
+                                  Reconnect
+                                </>
+                              )}
+                            </button>
+                          )}
+                          {/* Fix Connection button (wizard) for setup issues */}
+                          {['NO_PAGES_FOUND', 'IG_NOT_LINKED_TO_PAGE', 'IG_NOT_BUSINESS'].includes(instagramStatus.reason || '') && (
+                            <button
+                              onClick={openFixWizard}
+                              className="px-4 py-2 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors flex items-center gap-2"
+                              style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
+                            >
+                              Fix Connection
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -932,6 +965,31 @@ export default function SettingsPage() {
                           You can reconnect on {formatRetryDate(instagramStatus.retryAt)}
                         </span>
                       </div>
+                    </div>
+                  )}
+
+                  {/* API Error Details - Show when available for debugging */}
+                  {instagramStatus?.status === 'BLOCKED' && instagramStatus.apiError && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <details className="text-xs">
+                        <summary className="cursor-pointer text-gray-400 hover:text-gray-600">
+                          Technical details
+                        </summary>
+                        <div className="mt-2 p-3 bg-gray-50 rounded-lg font-mono text-gray-600 space-y-1">
+                          {instagramStatus.apiError.code && (
+                            <div>Error code: {instagramStatus.apiError.code}{instagramStatus.apiError.subcode ? ` (subcode: ${instagramStatus.apiError.subcode})` : ''}</div>
+                          )}
+                          {instagramStatus.apiError.type && (
+                            <div>Type: {instagramStatus.apiError.type}</div>
+                          )}
+                          {instagramStatus.apiError.message && (
+                            <div className="break-words">Message: {instagramStatus.apiError.message}</div>
+                          )}
+                          {instagramStatus.apiError.fbtraceId && (
+                            <div>Trace ID: {instagramStatus.apiError.fbtraceId}</div>
+                          )}
+                        </div>
+                      </details>
                     </div>
                   )}
 
