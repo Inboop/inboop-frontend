@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Mail, Shield, Eye, Edit3, Users, AlertCircle, ArrowUpRight } from 'lucide-react';
+import { Plus, Trash2, Mail, Shield, Eye, Edit3, Users, AlertCircle, ArrowUpRight, X } from 'lucide-react';
 import { toast } from '@/stores/useToastStore';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
+import { PlanLimitModal, usePlanLimitModal } from '@/components/shared/PlanLimitModal';
 import {
   getMyWorkspaces,
   getWorkspaceMembers,
@@ -15,7 +16,6 @@ import {
   canInvite,
   getErrorMessage,
   WorkspaceApiError,
-  WorkspaceErrorCodes,
   type WorkspaceResponse,
   type WorkspaceMemberResponse,
   type WorkspaceRole,
@@ -25,12 +25,16 @@ import {
 // Map backend roles to display labels
 const roleLabels: Record<WorkspaceRole, string> = {
   ADMIN: 'Admin',
-  MEMBER: 'Member',
+  EDITOR: 'Editor',
+  VIEWER: 'Viewer',
+  MEMBER: 'Editor', // Legacy mapping
 };
 
-const roleIcons = {
+const roleIcons: Record<WorkspaceRole, typeof Shield> = {
   ADMIN: Shield,
-  MEMBER: Edit3,
+  EDITOR: Edit3,
+  VIEWER: Eye,
+  MEMBER: Edit3, // Legacy mapping
 };
 
 export default function TeamPage() {
@@ -39,10 +43,39 @@ export default function TeamPage() {
   const [workspace, setWorkspace] = useState<WorkspaceResponse | null>(null);
   const [members, setMembers] = useState<WorkspaceMemberResponse[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<WorkspaceRole>('MEMBER');
+  const [inviteRole, setInviteRole] = useState<WorkspaceRole>('EDITOR');
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
   const [canInviteInfo, setCanInviteInfo] = useState<CanInviteResponse | null>(null);
+
+  // Confirmation modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    member: WorkspaceMemberResponse | null;
+    isProcessing: boolean;
+  }>({ isOpen: false, member: null, isProcessing: false });
+
+  // Role change loading state
+  const [roleChangeLoading, setRoleChangeLoading] = useState<number | null>(null);
+
+  // Plan limit modal
+  const { isOpen: isPlanModalOpen, modalProps, showPlanLimitModal, hidePlanLimitModal } = usePlanLimitModal();
+
+  // Near-limit banner dismissal (persisted in localStorage)
+  const [nearLimitBannerDismissed, setNearLimitBannerDismissed] = useState(false);
+
+  // Check localStorage on mount for banner dismissal
+  useEffect(() => {
+    const dismissed = localStorage.getItem('nearLimitBannerDismissed');
+    if (dismissed === 'true') {
+      setNearLimitBannerDismissed(true);
+    }
+  }, []);
+
+  const handleDismissNearLimitBanner = () => {
+    setNearLimitBannerDismissed(true);
+    localStorage.setItem('nearLimitBannerDismissed', 'true');
+  };
 
   // Fetch workspace and members
   const fetchData = useCallback(async () => {
@@ -93,7 +126,13 @@ export default function TeamPage() {
     } catch (error) {
       const errorInfo = getErrorMessage(error);
       if (errorInfo.showUpgrade) {
-        toast.warning(errorInfo.title, errorInfo.description);
+        // Show modal for plan limit errors
+        showPlanLimitModal({
+          title: errorInfo.title,
+          description: errorInfo.description,
+          currentPlan: errorInfo.currentPlan,
+          requiredPlan: errorInfo.requiredPlan,
+        });
       } else {
         toast.error(errorInfo.title, errorInfo.description);
       }
@@ -102,26 +141,35 @@ export default function TeamPage() {
     }
   };
 
-  const handleRemoveMember = async (member: WorkspaceMemberResponse) => {
-    if (!workspace) return;
+  // Open confirmation modal for member removal
+  const openRemoveConfirmation = (member: WorkspaceMemberResponse) => {
+    setConfirmModal({ isOpen: true, member, isProcessing: false });
+  };
 
-    if (!confirm(`Are you sure you want to remove ${member.userName} from the team?`)) {
-      return;
-    }
+  const closeRemoveConfirmation = () => {
+    setConfirmModal({ isOpen: false, member: null, isProcessing: false });
+  };
 
+  const handleRemoveMember = async () => {
+    if (!workspace || !confirmModal.member) return;
+
+    setConfirmModal((prev) => ({ ...prev, isProcessing: true }));
     try {
-      await removeMember(workspace.id, member.id);
-      toast.success('Member Removed', `${member.userName} has been removed from the team.`);
+      await removeMember(workspace.id, confirmModal.member.id);
+      toast.success('Member Removed', `${confirmModal.member.userName} has been removed from the team.`);
+      closeRemoveConfirmation();
       await fetchData();
     } catch (error) {
       const errorInfo = getErrorMessage(error);
       toast.error(errorInfo.title, errorInfo.description);
+      setConfirmModal((prev) => ({ ...prev, isProcessing: false }));
     }
   };
 
   const handleRoleChange = async (member: WorkspaceMemberResponse, newRole: WorkspaceRole) => {
     if (!workspace || member.role === newRole) return;
 
+    setRoleChangeLoading(member.id);
     try {
       await updateMemberRole(workspace.id, member.id, { role: newRole });
       toast.success('Role Updated', `${member.userName} is now ${roleLabels[newRole]}.`);
@@ -129,12 +177,21 @@ export default function TeamPage() {
     } catch (error) {
       const errorInfo = getErrorMessage(error);
       toast.error(errorInfo.title, errorInfo.description);
+    } finally {
+      setRoleChangeLoading(null);
     }
   };
 
   // Check if current user is admin
   const currentUserMember = members.find((m) => m.userEmail === user?.email);
   const isCurrentUserAdmin = currentUserMember?.role === 'ADMIN';
+
+  // Count admins to detect "last admin" scenario
+  const adminCount = members.filter((m) => m.role === 'ADMIN').length;
+
+  // Helper to check if demoting/removing an admin is allowed
+  const isLastAdmin = (member: WorkspaceMemberResponse) =>
+    member.role === 'ADMIN' && adminCount <= 1;
 
   // Calculate seats info
   const totalSeats = workspace?.maxUsers ?? 5;
@@ -169,13 +226,14 @@ export default function TeamPage() {
           ) : canInviteInfo && !canInviteInfo.hasCapacity ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-amber-600">Team limit reached</span>
-              <button
+              <a
+                href="mailto:sales@inboop.com?subject=Enterprise%20Plan%20Inquiry"
                 className="px-4 py-2.5 bg-amber-500 rounded-xl hover:bg-amber-600 transition-colors flex items-center gap-2"
                 style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
               >
-                <ArrowUpRight className="w-4 h-4" />
-                Upgrade Plan
-              </button>
+                <Mail className="w-4 h-4" />
+                Contact Sales
+              </a>
             </div>
           ) : (
             <button
@@ -198,15 +256,43 @@ export default function TeamPage() {
                 Team limit reached
               </div>
               <p style={{ fontSize: '13px', color: '#B45309', marginTop: '4px' }}>
-                Your Pro plan supports up to {totalSeats} team members. Upgrade to add more users and unlock additional features.
+                Your {workspace?.plan || 'Pro'} plan supports up to {totalSeats} team members. Contact sales to upgrade and add more users.
               </p>
             </div>
-            <button
+            <a
+              href="mailto:sales@inboop.com?subject=Enterprise%20Plan%20Inquiry"
               className="px-4 py-2 bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors flex items-center gap-1.5"
               style={{ fontSize: '13px', fontWeight: 500, color: 'white' }}
             >
-              <ArrowUpRight className="w-4 h-4" />
-              Upgrade
+              <Mail className="w-4 h-4" />
+              Contact Sales
+            </a>
+          </div>
+        )}
+
+        {/* Near-Limit Warning Banner - Show when approaching limit (e.g., 4/5), dismissible, admin-only */}
+        {!isLoading &&
+          canInviteInfo?.hasCapacity &&
+          isCurrentUserAdmin &&
+          !nearLimitBannerDismissed &&
+          usedSeats >= totalSeats - 1 &&
+          usedSeats < totalSeats && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#1E40AF' }}>
+                Approaching team limit
+              </div>
+              <p style={{ fontSize: '13px', color: '#3B82F6', marginTop: '4px' }}>
+                You have {availableSeats} seat{availableSeats === 1 ? '' : 's'} remaining on your {workspace?.plan || 'Pro'} plan. Need more? Contact sales to upgrade.
+              </p>
+            </div>
+            <button
+              onClick={handleDismissNearLimitBanner}
+              className="p-1.5 rounded-lg hover:bg-blue-100 transition-colors"
+              title="Dismiss"
+            >
+              <X className="w-4 h-4 text-blue-500" />
             </button>
           </div>
         )}
@@ -252,7 +338,8 @@ export default function TeamPage() {
                 style={{ fontSize: '14px', minWidth: '120px' }}
                 disabled={isInviting}
               >
-                <option value="MEMBER">Member</option>
+                <option value="EDITOR">Editor</option>
+                <option value="VIEWER">Viewer</option>
                 <option value="ADMIN">Admin</option>
               </select>
               <button
@@ -405,27 +492,44 @@ export default function TeamPage() {
 
                       {/* Role dropdown - only for admins and not for self */}
                       {isCurrentUserAdmin && !isCurrentUser ? (
-                        <select
-                          value={member.role}
-                          onChange={(e) => handleRoleChange(member, e.target.value as WorkspaceRole)}
-                          className={cn(
-                            'px-3 py-1.5 rounded-lg border-0 appearance-none cursor-pointer',
-                            member.role === 'ADMIN'
-                              ? 'bg-[#2F5D3E]/10 text-[#2F5D3E]'
-                              : 'bg-gray-100 text-gray-600'
+                        <div className="relative">
+                          <select
+                            value={member.role === 'MEMBER' ? 'EDITOR' : member.role}
+                            onChange={(e) => handleRoleChange(member, e.target.value as WorkspaceRole)}
+                            disabled={roleChangeLoading === member.id || isLastAdmin(member)}
+                            className={cn(
+                              'px-3 py-1.5 rounded-lg border-0 appearance-none',
+                              roleChangeLoading === member.id || isLastAdmin(member)
+                                ? 'cursor-not-allowed opacity-60'
+                                : 'cursor-pointer',
+                              member.role === 'ADMIN'
+                                ? 'bg-[#2F5D3E]/10 text-[#2F5D3E]'
+                                : member.role === 'VIEWER'
+                                  ? 'bg-blue-50 text-blue-600'
+                                  : 'bg-gray-100 text-gray-600'
+                            )}
+                            style={{ fontSize: '13px', fontWeight: 500 }}
+                            title={isLastAdmin(member) ? 'Cannot change role of last admin' : undefined}
+                          >
+                            <option value="VIEWER">Viewer</option>
+                            <option value="EDITOR">Editor</option>
+                            <option value="ADMIN">Admin</option>
+                          </select>
+                          {roleChangeLoading === member.id && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                            </div>
                           )}
-                          style={{ fontSize: '13px', fontWeight: 500 }}
-                        >
-                          <option value="MEMBER">Member</option>
-                          <option value="ADMIN">Admin</option>
-                        </select>
+                        </div>
                       ) : (
                         <div
                           className={cn(
                             'px-3 py-1.5 rounded-lg flex items-center gap-1.5',
                             member.role === 'ADMIN'
                               ? 'bg-[#2F5D3E]/10 text-[#2F5D3E]'
-                              : 'bg-gray-100 text-gray-600'
+                              : member.role === 'VIEWER'
+                                ? 'bg-blue-50 text-blue-600'
+                                : 'bg-gray-100 text-gray-600'
                           )}
                           style={{ fontSize: '13px', fontWeight: 500 }}
                         >
@@ -437,11 +541,20 @@ export default function TeamPage() {
                       {/* Remove button - only for admins and not for self */}
                       {isCurrentUserAdmin && !isCurrentUser ? (
                         <button
-                          onClick={() => handleRemoveMember(member)}
-                          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                          title="Remove member"
+                          onClick={() => openRemoveConfirmation(member)}
+                          disabled={isLastAdmin(member)}
+                          className={cn(
+                            'p-2 rounded-lg transition-colors',
+                            isLastAdmin(member)
+                              ? 'cursor-not-allowed opacity-40'
+                              : 'hover:bg-gray-100'
+                          )}
+                          title={isLastAdmin(member) ? 'Cannot remove last admin' : 'Remove member'}
                         >
-                          <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                          <Trash2 className={cn(
+                            'w-4 h-4',
+                            isLastAdmin(member) ? 'text-gray-300' : 'text-gray-400 hover:text-red-500'
+                          )} />
                         </button>
                       ) : (
                         <div className="w-8" /> // Spacer for alignment
@@ -459,24 +572,32 @@ export default function TeamPage() {
           <div style={{ fontSize: '16px', fontWeight: 600, color: '#111', marginBottom: '16px' }}>
             Role Permissions
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="p-4 bg-gray-50 rounded-xl">
               <div className="flex items-center gap-2 mb-2">
                 <Shield className="w-4 h-4 text-[#2F5D3E]" />
                 <span style={{ fontSize: '14px', fontWeight: 500, color: '#111' }}>Admin</span>
               </div>
               <p style={{ fontSize: '13px', color: '#6B7280' }}>
-                Full access to all features, settings, and team management. Can invite and remove
-                members.
+                Full access including team management. Can invite, remove members, and change roles.
               </p>
             </div>
             <div className="p-4 bg-gray-50 rounded-xl">
               <div className="flex items-center gap-2 mb-2">
                 <Edit3 className="w-4 h-4 text-gray-600" />
-                <span style={{ fontSize: '14px', fontWeight: 500, color: '#111' }}>Member</span>
+                <span style={{ fontSize: '14px', fontWeight: 500, color: '#111' }}>Editor</span>
               </div>
               <p style={{ fontSize: '13px', color: '#6B7280' }}>
-                Can manage conversations, leads, and orders. Cannot modify team settings.
+                Can manage conversations, leads, and orders. Cannot modify team or settings.
+              </p>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <Eye className="w-4 h-4 text-blue-500" />
+                <span style={{ fontSize: '14px', fontWeight: 500, color: '#111' }}>Viewer</span>
+              </div>
+              <p style={{ fontSize: '13px', color: '#6B7280' }}>
+                Read-only access. Can view conversations, leads, and orders but cannot make changes.
               </p>
             </div>
           </div>
@@ -494,13 +615,17 @@ export default function TeamPage() {
                   {usedSeats} of {totalSeats} seats used
                 </p>
               </div>
-              <button
-                className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-                style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}
-              >
-                <ArrowUpRight className="w-4 h-4" />
-                Manage Plan
-              </button>
+              {/* Only show Contact Sales for admins on non-Enterprise plans */}
+              {isCurrentUserAdmin && workspace.plan !== 'ENTERPRISE' && (
+                <a
+                  href="mailto:sales@inboop.com?subject=Enterprise%20Plan%20Inquiry"
+                  className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}
+                >
+                  <Mail className="w-4 h-4" />
+                  Contact Sales
+                </a>
+              )}
             </div>
             {/* Progress bar */}
             <div className="mt-4">
@@ -517,6 +642,72 @@ export default function TeamPage() {
           </div>
         )}
       </div>
+
+      {/* Plan Limit Modal */}
+      <PlanLimitModal
+        isOpen={isPlanModalOpen}
+        onClose={hidePlanLimitModal}
+        title={modalProps.title}
+        description={modalProps.description}
+        currentPlan={modalProps.currentPlan || workspace?.plan}
+        userLimit={workspace?.maxUsers}
+      />
+
+      {/* Remove Member Confirmation Modal */}
+      {confirmModal.isOpen && confirmModal.member && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={!confirmModal.isProcessing ? closeRemoveConfirmation : undefined}
+          />
+          {/* Modal */}
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111' }}>
+                  Remove team member
+                </h3>
+                <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '8px' }}>
+                  Are you sure you want to remove <strong>{confirmModal.member.userName}</strong> from the team?
+                  They will lose access to all conversations, leads, and orders.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6 justify-end">
+              <button
+                onClick={closeRemoveConfirmation}
+                disabled={confirmModal.isProcessing}
+                className="px-4 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRemoveMember}
+                disabled={confirmModal.isProcessing}
+                className="px-4 py-2.5 bg-red-600 rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
+              >
+                {confirmModal.isProcessing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Remove Member
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

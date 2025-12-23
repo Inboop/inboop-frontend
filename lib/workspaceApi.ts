@@ -7,8 +7,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 // Types matching backend DTOs
 
-export type WorkspaceRole = 'ADMIN' | 'MEMBER';
-export type PlanType = 'PRO' | 'ENTERPRISE';
+export type WorkspaceRole = 'ADMIN' | 'EDITOR' | 'VIEWER' | 'MEMBER';
+export type PlanType = 'FREE' | 'PRO' | 'ENTERPRISE';
 
 export interface WorkspaceResponse {
   id: number;
@@ -55,21 +55,55 @@ export interface WorkspaceErrorResponse {
   message: string;
 }
 
+// Plan limit error response from backend (402 Payment Required)
+export interface PlanLimitErrorResponse {
+  code: string;
+  message: string;
+  upgradeSuggested: boolean;
+  currentPlan?: string;
+  requiredPlan?: string;
+  feature?: string;
+}
+
 // Custom error class for workspace-specific errors
 export class WorkspaceApiError extends Error {
   code: string;
   status: number;
+  upgradeSuggested: boolean;
+  currentPlan?: string;
+  requiredPlan?: string;
+  feature?: string;
 
-  constructor(code: string, message: string, status: number) {
+  constructor(
+    code: string,
+    message: string,
+    status: number,
+    upgradeSuggested = false,
+    currentPlan?: string,
+    requiredPlan?: string,
+    feature?: string
+  ) {
     super(message);
     this.name = 'WorkspaceApiError';
     this.code = code;
     this.status = status;
+    this.upgradeSuggested = upgradeSuggested;
+    this.currentPlan = currentPlan;
+    this.requiredPlan = requiredPlan;
+    this.feature = feature;
   }
 
-  // Check if this is a specific error type
+  // Check if this is a plan limit error
   isPlanLimitReached(): boolean {
-    return this.code === 'PLAN_USER_LIMIT_REACHED';
+    return this.code === 'PLAN_LIMIT_REACHED' || this.code === 'PLAN_USER_LIMIT_REACHED';
+  }
+
+  isPlanExpired(): boolean {
+    return this.code === 'PLAN_EXPIRED';
+  }
+
+  isPlanSuspended(): boolean {
+    return this.code === 'PLAN_SUSPENDED';
   }
 
   isAdminRequired(): boolean {
@@ -91,9 +125,15 @@ export class WorkspaceApiError extends Error {
 
 // Error code constants for easy reference
 export const WorkspaceErrorCodes = {
-  PLAN_USER_LIMIT_REACHED: 'PLAN_USER_LIMIT_REACHED',
+  // Plan errors (402 Payment Required)
+  PLAN_LIMIT_REACHED: 'PLAN_LIMIT_REACHED',
+  PLAN_USER_LIMIT_REACHED: 'PLAN_USER_LIMIT_REACHED', // Legacy, maps to PLAN_LIMIT_REACHED
+  PLAN_EXPIRED: 'PLAN_EXPIRED',
+  PLAN_SUSPENDED: 'PLAN_SUSPENDED',
+  // Permission errors
   ADMIN_REQUIRED: 'ADMIN_REQUIRED',
   MUST_HAVE_ADMIN: 'MUST_HAVE_ADMIN',
+  // Membership errors
   USER_ALREADY_MEMBER: 'USER_ALREADY_MEMBER',
   USER_NOT_FOUND: 'USER_NOT_FOUND',
   WORKSPACE_NOT_FOUND: 'WORKSPACE_NOT_FOUND',
@@ -121,11 +161,22 @@ function buildHeaders(): HeadersInit {
 // Helper to handle response with workspace-specific error handling
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    // Try to parse as WorkspaceErrorResponse
+    // Try to parse as error response
     try {
-      const errorBody: WorkspaceErrorResponse = await response.json();
+      const errorBody = await response.json();
+
+      // Check if it's a PlanLimitErrorResponse (has upgradeSuggested field)
       if (errorBody.code && errorBody.message) {
-        throw new WorkspaceApiError(errorBody.code, errorBody.message, response.status);
+        const isPlanError = 'upgradeSuggested' in errorBody;
+        throw new WorkspaceApiError(
+          errorBody.code,
+          errorBody.message,
+          response.status,
+          isPlanError ? errorBody.upgradeSuggested : false,
+          isPlanError ? errorBody.currentPlan : undefined,
+          isPlanError ? errorBody.requiredPlan : undefined,
+          isPlanError ? errorBody.feature : undefined
+        );
       }
     } catch (e) {
       if (e instanceof WorkspaceApiError) {
@@ -277,15 +328,45 @@ export async function canInvite(workspaceId: number): Promise<CanInviteResponse>
  * Get user-friendly error message for workspace errors.
  * Use this to display appropriate messages in the UI.
  */
-export function getErrorMessage(error: unknown): { title: string; description: string; showUpgrade?: boolean } {
+export function getErrorMessage(error: unknown): {
+  title: string;
+  description: string;
+  showUpgrade?: boolean;
+  currentPlan?: string;
+  requiredPlan?: string;
+} {
   if (error instanceof WorkspaceApiError) {
+    // Plan limit errors
+    if (error.isPlanLimitReached()) {
+      return {
+        title: 'Plan Limit Reached',
+        description: error.message || 'Upgrade to unlock this feature.',
+        showUpgrade: error.upgradeSuggested,
+        currentPlan: error.currentPlan,
+        requiredPlan: error.requiredPlan,
+      };
+    }
+
+    if (error.isPlanExpired()) {
+      return {
+        title: 'Plan Expired',
+        description: 'Your plan has expired. Please renew to continue using premium features.',
+        showUpgrade: true,
+        currentPlan: error.currentPlan,
+      };
+    }
+
+    if (error.isPlanSuspended()) {
+      return {
+        title: 'Plan Suspended',
+        description: 'Your plan is suspended. Please contact support.',
+        showUpgrade: false,
+        currentPlan: error.currentPlan,
+      };
+    }
+
+    // Permission errors
     switch (error.code) {
-      case WorkspaceErrorCodes.PLAN_USER_LIMIT_REACHED:
-        return {
-          title: 'Team Limit Reached',
-          description: 'Pro plan supports up to 5 users. Upgrade to add more team members.',
-          showUpgrade: true,
-        };
       case WorkspaceErrorCodes.ADMIN_REQUIRED:
         return {
           title: 'Admin Required',

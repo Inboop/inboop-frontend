@@ -35,6 +35,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/stores/useToastStore';
 import { cn } from '@/lib/utils';
+import { getMyWorkspaces, getWorkspaceMembers, WorkspaceResponse, WorkspaceMemberResponse, PlanType } from '@/lib/workspaceApi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -256,6 +257,25 @@ const tabs: Tab[] = [
   { id: 'billing', label: 'Billing', icon: <CreditCard className="w-5 h-5" /> },
 ];
 
+// Plan descriptions and features
+const planInfo: Record<PlanType, { name: string; description: string; features: string[] }> = {
+  FREE: {
+    name: 'Free',
+    description: 'Basic features for getting started',
+    features: ['Up to 2 team members', 'Basic inbox', 'Limited leads'],
+  },
+  PRO: {
+    name: 'Pro',
+    description: 'Everything you need to grow your business',
+    features: ['Up to 5 team members', 'Unlimited conversations', 'Lead management', 'Basic analytics'],
+  },
+  ENTERPRISE: {
+    name: 'Enterprise',
+    description: 'Advanced features for larger teams',
+    features: ['Unlimited team members', 'Priority support', 'Advanced analytics', 'Custom integrations'],
+  },
+};
+
 // Toggle Switch Component
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (value: boolean) => void }) {
   return (
@@ -331,6 +351,11 @@ export default function SettingsPage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifySuccess, setVerifySuccess] = useState(false);
   const [showHelpSection, setShowHelpSection] = useState(false);
+
+  // Billing/Plan state
+  const [workspace, setWorkspace] = useState<WorkspaceResponse | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoadingPlan, setIsLoadingPlan] = useState(false);
 
   // Handle tab from URL param
   useEffect(() => {
@@ -412,6 +437,33 @@ export default function SettingsPage() {
       fetchInstagramStatus();
     }
   }, [activeTab, fetchInstagramStatus]);
+
+  // Fetch workspace and plan data when billing tab is active
+  useEffect(() => {
+    const fetchWorkspaceData = async () => {
+      if (activeTab !== 'billing' || workspace) return;
+
+      setIsLoadingPlan(true);
+      try {
+        const workspaces = await getMyWorkspaces();
+        if (workspaces.length > 0) {
+          const ws = workspaces[0];
+          setWorkspace(ws);
+
+          // Check if current user is admin
+          const members = await getWorkspaceMembers(ws.id);
+          const currentMember = members.find(m => m.userEmail === user?.email);
+          setIsAdmin(currentMember?.role === 'ADMIN');
+        }
+      } catch (error) {
+        console.error('Failed to fetch workspace data:', error);
+      } finally {
+        setIsLoadingPlan(false);
+      }
+    };
+
+    fetchWorkspaceData();
+  }, [activeTab, workspace, user?.email]);
 
   const handleConnectInstagram = async () => {
     setIsConnectingInstagram(true);
@@ -1176,69 +1228,106 @@ export default function SettingsPage() {
         );
 
       case 'billing':
+        const currentPlan = workspace?.plan || 'PRO';
+        const currentPlanInfo = planInfo[currentPlan];
+
         return (
           <div className="space-y-4">
-            {/* Current Plan */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <span style={{ fontSize: '18px', fontWeight: 600, color: '#111' }}>Professional Plan</span>
-                    <span className="px-2.5 py-1 bg-[#2F5D3E]/10 rounded-lg" style={{ fontSize: '12px', fontWeight: 500, color: '#2F5D3E' }}>Active</span>
-                  </div>
-                  <div style={{ fontSize: '28px', fontWeight: 700, color: '#111', marginTop: '8px' }}>
-                    $7.99<span style={{ fontSize: '14px', fontWeight: 400, color: '#6B7280' }}>/month</span>
-                  </div>
+            {/* Loading State */}
+            {isLoadingPlan && (
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                  <span style={{ fontSize: '14px', color: '#6B7280' }}>Loading plan information...</span>
                 </div>
               </div>
+            )}
 
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-[#2F5D3E]" />
-                  <span style={{ fontSize: '14px', color: '#374151' }}>Unlimited conversations</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-[#2F5D3E]" />
-                  <span style={{ fontSize: '14px', color: '#374151' }}>Up to 5 team members</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-[#2F5D3E]" />
-                  <span style={{ fontSize: '14px', color: '#374151' }}>Advanced analytics</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-[#2F5D3E]" />
-                  <span style={{ fontSize: '14px', color: '#374151' }}>Priority support</span>
-                </div>
-              </div>
-
-              <div className="mt-6 flex items-center gap-3">
-                <button className="px-6 py-3 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors" style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}>
-                  Change Plan
-                </button>
-                <button className="px-6 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors" style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>
-                  Cancel Subscription
-                </button>
-              </div>
-            </div>
-
-            {/* Payment Method */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <div style={{ fontSize: '16px', fontWeight: 600, color: '#111' }}>Payment Method</div>
-              <div className="mt-4 flex items-center justify-between p-4 border border-gray-200 rounded-xl">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-8 bg-gray-900 rounded-md flex items-center justify-center">
-                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'white', letterSpacing: '1px' }}>VISA</span>
-                  </div>
+            {/* Current Plan Card */}
+            {!isLoadingPlan && (
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <div className="flex items-start justify-between">
                   <div>
-                    <div style={{ fontSize: '14px', fontWeight: 500, color: '#111' }}>•••• •••• •••• 4242</div>
-                    <div style={{ fontSize: '13px', color: '#6B7280' }}>Expires 12/26</div>
+                    <div className="flex items-center gap-3">
+                      <span style={{ fontSize: '18px', fontWeight: 600, color: '#111' }}>{currentPlanInfo.name} Plan</span>
+                      <span className="px-2.5 py-1 bg-[#2F5D3E]/10 rounded-lg" style={{ fontSize: '12px', fontWeight: 500, color: '#2F5D3E' }}>Active</span>
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>
+                      {currentPlanInfo.description}
+                    </div>
                   </div>
                 </div>
-                <button className="px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors" style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>
-                  Update
-                </button>
+
+                {/* Usage Stats */}
+                <div className="mt-6 p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div style={{ fontSize: '13px', color: '#6B7280' }}>Team members</div>
+                      <div style={{ fontSize: '20px', fontWeight: 600, color: '#111', marginTop: '2px' }}>
+                        {workspace?.memberCount || 1} / {workspace?.maxUsers || 5}
+                      </div>
+                    </div>
+                    <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#2F5D3E] rounded-full transition-all"
+                        style={{ width: `${((workspace?.memberCount || 1) / (workspace?.maxUsers || 5)) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Plan Features */}
+                <div className="mt-6 space-y-3">
+                  {currentPlanInfo.features.map((feature, index) => (
+                    <div key={index} className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-[#2F5D3E]" />
+                      <span style={{ fontSize: '14px', color: '#374151' }}>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Admin-only CTA for non-Enterprise plans */}
+                {isAdmin && currentPlan !== 'ENTERPRISE' && (
+                  <div className="mt-6 pt-6 border-t border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 500, color: '#111' }}>Need more features?</div>
+                        <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '2px' }}>
+                          Enterprise plans include unlimited users and priority support.
+                        </div>
+                      </div>
+                      <a
+                        href="mailto:sales@inboop.com?subject=Enterprise%20Plan%20Inquiry"
+                        className="px-5 py-2.5 bg-[#2F5D3E] rounded-xl hover:bg-[#264a32] transition-colors flex items-center gap-2"
+                        style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
+                      >
+                        <Mail className="w-4 h-4" />
+                        Contact Sales
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
+
+            {/* Billing managed info - placeholder for future Stripe integration */}
+            {!isLoadingPlan && (
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <div style={{ fontSize: '16px', fontWeight: 600, color: '#111' }}>Billing</div>
+                <div style={{ fontSize: '14px', color: '#6B7280', marginTop: '8px' }}>
+                  Billing is managed separately. Contact our team for any billing inquiries.
+                </div>
+                <div className="mt-4">
+                  <a
+                    href="mailto:support@inboop.com?subject=Billing%20Inquiry"
+                    className="text-[#2F5D3E] hover:underline"
+                    style={{ fontSize: '14px', fontWeight: 500 }}
+                  >
+                    support@inboop.com
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         );
 
