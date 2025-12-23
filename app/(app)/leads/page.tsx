@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useLeadStore } from '@/stores/useLeadStore';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +11,7 @@ import {
   Plus,
   TrendingUp,
   Users,
+  User,
   Target,
   DollarSign,
   ChevronDown,
@@ -21,6 +22,8 @@ import {
   ShoppingCart,
   Save,
   Trash2,
+  UserPlus,
+  Loader2,
 } from 'lucide-react';
 import { getChannelIcon } from '@/components/shared/ChannelIcons';
 import { Lead, LeadStatus, IntentType } from '@/types';
@@ -35,19 +38,73 @@ import {
   formatMessageTime,
 } from '@/lib/helpers';
 import { Skeleton, SkeletonCard, SkeletonLeadRow, SkeletonDetailPanel } from '@/components/ui/skeleton';
+import { toast } from '@/stores/useToastStore';
 
 const statusFilters: LeadStatus[] = ['New', 'Contacted', 'Qualified', 'Converted', 'Lost'];
 
+type AssignmentFilter = 'any' | 'me' | 'unassigned';
+
+const assignmentOptions: { value: AssignmentFilter; label: string; icon: React.ReactNode }[] = [
+  { value: 'any', label: 'All', icon: <Users className="w-3.5 h-3.5" /> },
+  { value: 'me', label: 'Mine', icon: <User className="w-3.5 h-3.5" /> },
+  { value: 'unassigned', label: 'Unassigned', icon: <User className="w-3.5 h-3.5 opacity-50" /> },
+];
+
 export default function LeadsPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { user } = useAuth();
   const { leads, deleteLead, updateLead, isLoading, fetchLeads } = useLeadStore();
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<LeadStatus | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
 
   const isAdmin = isAdminUser(user?.email);
+
+  // Read assignment filter from URL
+  const urlAssignedTo = (searchParams.get('assignedTo') || 'any') as AssignmentFilter;
+
+  // Update URL with assignment filter
+  const handleAssignmentFilterChange = useCallback(
+    (filter: AssignmentFilter) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (filter === 'any') {
+        params.delete('assignedTo');
+      } else {
+        params.set('assignedTo', filter);
+      }
+      const newUrl = params.toString() ? `/leads?${params.toString()}` : '/leads';
+      router.push(newUrl, { scroll: false });
+    },
+    [router, searchParams]
+  );
+
+  // Handle assign to me
+  const handleAssignToMe = useCallback(
+    async (e: React.MouseEvent, leadId: string) => {
+      e.stopPropagation();
+      if (!user?.id || assigningId) return;
+
+      setAssigningId(leadId);
+      try {
+        // For now, update locally (mock mode)
+        // TODO: Replace with API call when backend endpoint exists
+        updateLead(leadId, {
+          assignedToUserId: String(user.id),
+          assignedTo: user.name || user.email,
+        });
+        toast.success('Assigned to you');
+      } catch (error) {
+        console.error('Failed to assign:', error);
+        toast.error('Failed to assign', error instanceof Error ? error.message : 'Please try again');
+      } finally {
+        setAssigningId(null);
+      }
+    },
+    [user, assigningId, updateLead]
+  );
 
   // Fetch leads on mount
   useEffect(() => {
@@ -101,9 +158,18 @@ export default function LeadsPage() {
       const matchesSearch = !searchQuery ||
         lead.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         lead.customerHandle.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesStatus && matchesSearch;
+
+      // Assignment filter
+      let matchesAssignment = true;
+      if (urlAssignedTo === 'me') {
+        matchesAssignment = lead.assignedToUserId === user?.id;
+      } else if (urlAssignedTo === 'unassigned') {
+        matchesAssignment = !lead.assignedToUserId;
+      }
+
+      return matchesStatus && matchesSearch && matchesAssignment;
     });
-  }, [leads, selectedStatus, searchQuery]);
+  }, [leads, selectedStatus, searchQuery, urlAssignedTo, user?.id]);
 
   const selectedLead = selectedLeadId
     ? leads.find((l) => l.id === selectedLeadId) || null
@@ -255,6 +321,25 @@ export default function LeadsPage() {
               </button>
             ))}
 
+            {/* Assignment Filter Chips */}
+            <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 flex-shrink-0">
+              {assignmentOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handleAssignmentFilterChange(option.value)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
+                    urlAssignedTo === option.value
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  )}
+                >
+                  {option.icon}
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
             {/* More Filters Button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -399,7 +484,7 @@ export default function LeadsPage() {
                       </div>
 
                       {/* Assigned To - De-emphasized - Hidden on mobile */}
-                      <div className="hidden md:block">
+                      <div className="hidden md:flex items-center">
                         {lead.assignedTo ? (
                           <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center" title={lead.assignedTo}>
                             <span className="text-xs font-medium text-gray-500">
@@ -407,7 +492,18 @@ export default function LeadsPage() {
                             </span>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-300">—</span>
+                          <button
+                            onClick={(e) => handleAssignToMe(e, lead.id)}
+                            disabled={assigningId === lead.id}
+                            title="Assign to me"
+                            className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                          >
+                            {assigningId === lead.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <UserPlus className="w-4 h-4" />
+                            )}
+                          </button>
                         )}
                       </div>
                     </div>

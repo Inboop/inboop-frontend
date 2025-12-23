@@ -337,6 +337,18 @@ export async function assignOrder(orderId: number, request: AssignOrderRequest):
 }
 
 /**
+ * Assign order to the current user (self-assign).
+ */
+export async function assignOrderToMe(orderId: number): Promise<OrderDetail> {
+  const response = await fetch(`${API_URL}/api/v1/orders/${orderId}/assign-to-me`, {
+    method: 'POST',
+    headers: buildHeaders(),
+  });
+
+  return handleResponse<OrderDetail>(response);
+}
+
+/**
  * Create a new order.
  */
 export async function createOrder(request: CreateOrderRequest): Promise<OrderDetail> {

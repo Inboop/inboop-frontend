@@ -20,6 +20,8 @@ import {
   RefreshCw,
   User,
   Users,
+  UserPlus,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
@@ -156,6 +158,7 @@ export default function OrdersPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [assigningId, setAssigningId] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Read filters from URL
@@ -351,6 +354,28 @@ export default function OrdersPage() {
   }, [router, searchParams]);
 
   // handleCreateOrder and existingOrderNumbers removed - orders are now created from Inbox
+
+  // Handle assign to me
+  const handleAssignToMe = useCallback(
+    async (e: React.MouseEvent, orderId: number) => {
+      e.stopPropagation();
+      if (assigningId) return;
+
+      setAssigningId(orderId);
+      try {
+        await ordersApi.assignOrderToMe(orderId);
+        toast.success('Assigned to you');
+        // Refresh the orders list
+        fetchOrdersFromApi();
+      } catch (error) {
+        console.error('Failed to assign:', error);
+        toast.error('Failed to assign', error instanceof Error ? error.message : 'Please try again');
+      } finally {
+        setAssigningId(null);
+      }
+    },
+    [assigningId, fetchOrdersFromApi]
+  );
 
   // Calculate metrics (from mock data or API data)
   const metrics = useMemo(() => {
@@ -896,7 +921,7 @@ export default function OrdersPage() {
                       </div>
 
                       {/* Assignee */}
-                      <div className="hidden md:block">
+                      <div className="hidden md:flex items-center">
                         {order.assignedToUserName ? (
                           <div
                             className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600"
@@ -910,9 +935,18 @@ export default function OrdersPage() {
                               .slice(0, 2)}
                           </div>
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                            <User className="w-4 h-4 text-gray-300" />
-                          </div>
+                          <button
+                            onClick={(e) => handleAssignToMe(e, order.id)}
+                            disabled={assigningId === order.id}
+                            title="Assign to me"
+                            className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                          >
+                            {assigningId === order.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <UserPlus className="w-4 h-4" />
+                            )}
+                          </button>
                         )}
                       </div>
 

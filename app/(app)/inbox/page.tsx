@@ -16,6 +16,9 @@ import { mockMessages } from '@/lib/mockData';
 import { mockExtendedOrders, ExtendedOrder } from '@/lib/orders.mock';
 import { LeadStatus } from '@/types';
 import { SkeletonConversation, SkeletonMessage, SkeletonDetailPanel, Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/stores/useToastStore';
+
+type AssignmentFilter = 'any' | 'me' | 'unassigned';
 
 // Deep clone mock orders for state management
 const cloneMockOrders = (): ExtendedOrder[] => {
@@ -34,13 +37,53 @@ export default function InboxPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { selectedConversationId, setSelectedConversationId } = useUIStore();
-  const { conversations, setConversationVIP, isLoading, fetchConversations } = useConversationStore();
+  const { conversations, setConversationVIP, isLoading, fetchConversations, updateConversation } = useConversationStore();
   const { isLoading: ordersLoading, fetchOrders } = useOrderStore();
 
   const isAdmin = isAdminUser(user?.email);
 
   // Create order drawer state
   const [isCreateOrderDrawerOpen, setIsCreateOrderDrawerOpen] = useState(false);
+
+  // Read assignment filter from URL
+  const urlAssignedTo = (searchParams.get('assignedTo') || 'any') as AssignmentFilter;
+
+  // Update URL with assignment filter
+  const handleAssignmentFilterChange = useCallback(
+    (filter: AssignmentFilter) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (filter === 'any') {
+        params.delete('assignedTo');
+      } else {
+        params.set('assignedTo', filter);
+      }
+      const newUrl = params.toString() ? `/inbox?${params.toString()}` : '/inbox';
+      router.push(newUrl, { scroll: false });
+    },
+    [router, searchParams]
+  );
+
+  // Handle assign to me
+  const handleAssignToMe = useCallback(
+    async (conversationId: string) => {
+      if (!user?.id) return;
+
+      try {
+        // For now, update locally (mock mode)
+        // TODO: Replace with API call when backend endpoint exists
+        updateConversation(conversationId, {
+          assignedToUserId: String(user.id),
+          assignedTo: user.name || user.email,
+        });
+        toast.success('Assigned to you');
+      } catch (error) {
+        console.error('Failed to assign:', error);
+        toast.error('Failed to assign', error instanceof Error ? error.message : 'Please try again');
+        throw error;
+      }
+    },
+    [user, updateConversation]
+  );
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -198,6 +241,10 @@ export default function InboxPage() {
             conversations={conversations}
             selectedId={selectedConversationId}
             onSelect={setSelectedConversationId}
+            assignmentFilter={urlAssignedTo}
+            onAssignmentFilterChange={handleAssignmentFilterChange}
+            currentUserId={user?.id ? String(user.id) : undefined}
+            onAssignToMe={handleAssignToMe}
           />
         </div>
 

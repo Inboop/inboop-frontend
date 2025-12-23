@@ -1,16 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Inbox, SearchX, Star } from 'lucide-react';
+import { Search, Inbox, SearchX, Star, User, Users, UserPlus, Loader2 } from 'lucide-react';
 import { Conversation, ChannelType } from '@/types';
 import { formatRelativeTime } from '@/lib/helpers';
+import { cn } from '@/lib/utils';
 
 type FilterType = ChannelType | 'all' | 'vip';
+type AssignmentFilter = 'any' | 'me' | 'unassigned';
 
 interface ConversationListProps {
   conversations: Conversation[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  assignmentFilter?: AssignmentFilter;
+  onAssignmentFilterChange?: (filter: AssignmentFilter) => void;
+  currentUserId?: string;
+  onAssignToMe?: (conversationId: string) => Promise<void>;
 }
 
 const channelFilters: { label: string; value: FilterType }[] = [
@@ -144,13 +150,38 @@ const getInitials = (name?: string) => {
     .slice(0, 2);
 };
 
+// Assignment filter options
+const assignmentFilters: { label: string; value: AssignmentFilter; icon: React.ReactNode }[] = [
+  { label: 'All', value: 'any', icon: <Users className="w-3.5 h-3.5" /> },
+  { label: 'Mine', value: 'me', icon: <User className="w-3.5 h-3.5" /> },
+  { label: 'Unassigned', value: 'unassigned', icon: <User className="w-3.5 h-3.5 opacity-50" /> },
+];
+
 export default function ConversationList({
   conversations,
   selectedId,
   onSelect,
+  assignmentFilter = 'any',
+  onAssignmentFilterChange,
+  currentUserId,
+  onAssignToMe,
 }: ConversationListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+
+  // Handle assign to me
+  const handleAssignToMe = async (e: React.MouseEvent, conversationId: string) => {
+    e.stopPropagation();
+    if (!onAssignToMe || assigningId) return;
+
+    setAssigningId(conversationId);
+    try {
+      await onAssignToMe(conversationId);
+    } finally {
+      setAssigningId(null);
+    }
+  };
 
   const filteredConversations = conversations
     .filter((conv) => {
@@ -158,10 +189,19 @@ export default function ConversationList({
       const matchesSearch = customerName
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
-      const matchesFilter =
+      const matchesChannelFilter =
         activeFilter === 'all' ||
         (activeFilter === 'vip' ? conv.isVIP === true : conv.channel === activeFilter);
-      return matchesSearch && matchesFilter;
+
+      // Assignment filter
+      let matchesAssignment = true;
+      if (assignmentFilter === 'me') {
+        matchesAssignment = conv.assignedToUserId === currentUserId;
+      } else if (assignmentFilter === 'unassigned') {
+        matchesAssignment = !conv.assignedToUserId;
+      }
+
+      return matchesSearch && matchesChannelFilter && matchesAssignment;
     })
     .sort((a, b) => {
       // Sort by most recent message (latest first)
@@ -236,6 +276,27 @@ export default function ConversationList({
           />
         </div>
 
+        {/* Assignment Filter Chips */}
+        {onAssignmentFilterChange && (
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 mb-3">
+            {assignmentFilters.map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => onAssignmentFilterChange(filter.value)}
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all flex-1 justify-center',
+                  assignmentFilter === filter.value
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                )}
+              >
+                {filter.icon}
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Channel Filters */}
         <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
           {channelFilters.map((filter) => (
@@ -304,18 +365,35 @@ export default function ConversationList({
                 <p className="text-sm text-gray-600 truncate mt-0.5">
                   {conversation.lastMessage}
                 </p>
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs border ${getIntentStyle(
-                      conversation.intent
-                    )}`}
-                  >
-                    {conversation.intent}
-                  </span>
-                  {(conversation.unreadCount ?? 0) > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-[#2F5D3E] text-white">
-                      {conversation.unreadCount}
+                <div className="flex items-center justify-between gap-1.5 mt-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs border ${getIntentStyle(
+                        conversation.intent
+                      )}`}
+                    >
+                      {conversation.intent}
                     </span>
+                    {(conversation.unreadCount ?? 0) > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-[#2F5D3E] text-white">
+                        {conversation.unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  {/* Assign to me button for unassigned conversations */}
+                  {onAssignToMe && !conversation.assignedToUserId && (
+                    <button
+                      onClick={(e) => handleAssignToMe(e, conversation.id)}
+                      disabled={assigningId === conversation.id}
+                      title="Assign to me"
+                      className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                    >
+                      {assigningId === conversation.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <UserPlus className="w-3.5 h-3.5" />
+                      )}
+                    </button>
                   )}
                 </div>
               </div>
