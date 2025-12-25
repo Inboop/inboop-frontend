@@ -498,18 +498,34 @@ export default function SettingsPage() {
     }
   };
 
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+
   const handleDisconnectInstagram = async () => {
+    setIsDisconnecting(true);
     try {
       const token = localStorage.getItem('accessToken');
-      await fetch(`${API_URL}/api/v1/integrations/instagram/disconnect`, {
+      const response = await fetch(`${API_URL}/api/v1/integrations/instagram/disconnect`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to disconnect');
+      }
+
       setInstagramConnection({ isConnected: false });
-      toast.success('Disconnected', 'Instagram account has been disconnected.');
+      setInstagramStatus(null);
+      setShowDisconnectConfirm(false);
+      toast.success('Disconnected', 'Instagram account has been disconnected. You can now connect a different account.');
+
+      // Refresh status to show NOT_CONNECTED state
+      await fetchInstagramStatus();
     } catch (error) {
       console.error('Failed to disconnect:', error);
       toast.error('Error', 'Failed to disconnect Instagram account.');
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -884,7 +900,7 @@ export default function SettingsPage() {
                       {/* CONNECTED_READY: Show Disconnect button */}
                       {instagramStatus?.status === 'CONNECTED_READY' && (
                         <button
-                          onClick={handleDisconnectInstagram}
+                          onClick={() => setShowDisconnectConfirm(true)}
                           className="px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                           style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}
                         >
@@ -1227,6 +1243,68 @@ export default function SettingsPage() {
                       )}
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Disconnect Confirmation Modal */}
+            {showDisconnectConfirm && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                      <AlertTriangle className="w-5 h-5 text-red-600" />
+                    </div>
+                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111' }}>Disconnect Instagram?</h3>
+                  </div>
+
+                  <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '16px' }}>
+                    This will disconnect your Instagram account from Inboop. You can reconnect with the same or a different account afterward.
+                  </p>
+
+                  {instagramStatus?.details?.instagramUsername && (
+                    <div className="p-3 bg-gray-50 rounded-xl mb-6 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center">
+                        <Instagram className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 500, color: '#111' }}>
+                          @{instagramStatus.details.instagramUsername}
+                        </div>
+                        {instagramStatus.details.businessName && (
+                          <div style={{ fontSize: '12px', color: '#6B7280' }}>
+                            {instagramStatus.details.businessName}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowDisconnectConfirm(false)}
+                      disabled={isDisconnecting}
+                      className="flex-1 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                      style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDisconnectInstagram}
+                      disabled={isDisconnecting}
+                      className="flex-1 px-4 py-3 bg-red-600 rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}
+                    >
+                      {isDisconnecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Disconnecting...
+                        </>
+                      ) : (
+                        'Disconnect'
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
