@@ -21,14 +21,11 @@ export function Header() {
             <a href="#features" className="text-gray-300 hover:text-white transition-colors">
               Features
             </a>
-            <a href="#pricing" className="text-gray-300 hover:text-white transition-colors">
-              Pricing
+            <a href="#how-it-works" className="text-gray-300 hover:text-white transition-colors">
+              How it Works
             </a>
             <a href="#integrations" className="text-gray-300 hover:text-white transition-colors">
               Integrations
-            </a>
-            <a href="#blog" className="text-gray-300 hover:text-white transition-colors">
-              Blog
             </a>
           </nav>
 

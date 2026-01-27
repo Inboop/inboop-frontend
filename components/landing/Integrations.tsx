@@ -8,7 +8,7 @@ export function Integrations() {
   ];
 
   return (
-    <section id="integrations" className="py-20 px-6" style={{ backgroundColor: '#2F5D3E' }}>
+    <section id="integrations" className="py-20 px-6 scroll-mt-24" style={{ backgroundColor: '#2F5D3E' }}>
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-4xl text-white mb-4">Works with all your channels</h2>

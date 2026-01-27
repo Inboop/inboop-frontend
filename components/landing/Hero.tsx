@@ -1,5 +1,6 @@
 import { Play } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export function Hero() {
   return (
@@ -13,12 +14,13 @@ export function Hero() {
             Manage all your customer messages, leads, and orders in one place with automation that boosts your sales.
           </p>
           <div className="flex items-center justify-center gap-4">
-            <button
+            <Link
+              href="/login"
               className="px-8 py-4 bg-white rounded-full hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
               style={{ color: '#2F5D3E' }}
             >
               Get Started Free
-            </button>
+            </Link>
             <button className="px-8 py-4 bg-transparent text-white rounded-full hover:bg-white/10 transition-all border border-white/30 shadow-sm hover:shadow-md flex items-center gap-2">
               <Play className="w-5 h-5" />
               Watch Demo

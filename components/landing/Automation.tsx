@@ -2,7 +2,7 @@ import { ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export function Automation() {
   return (
-    <section className="py-20 px-6 bg-gray-50">
+    <section id="how-it-works" className="py-20 px-6 bg-gray-50 scroll-mt-24">
       <div className="max-w-7xl mx-auto">
         <div className="max-w-4xl mx-auto text-center mb-12">
           <h2 className="text-4xl text-gray-900 mb-6">
